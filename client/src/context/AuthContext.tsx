@@ -8,11 +8,8 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   loading: boolean;
-  // אופציה 1: התחברות רגילה (מייל וסיסמה)
   login: (email: string, pass: string) => Promise<void>;
-  // אופציה 2: התחברות עם טוקן קיים (גוגל)
   loginWithToken: (token: string) => void; 
-  // אופציה 3: הרשמה
   register: (first: string, last: string, email: string, pass: string) => Promise<void>;
   logout: () => void;
 }
@@ -24,7 +21,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   // --- הפונקציה המרכזית שמפענחת טוקן ומעדכנת את המשתמש ---
-  // אנחנו נשתמש בה גם בלוגין רגיל, גם בגוגל, וגם בטעינת עמוד (Refresh)
   const handleTokenProcessing = (token: string) => {
     localStorage.setItem('token', token);
     api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
@@ -45,7 +41,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             email: decoded.email,
             firstName: decoded.firstName || 'User',
             lastName: decoded.lastName,
-            role: decoded.roles?.[0] || 'user',
+            // --- התיקון כאן: ---
+            // במקום decoded.roles?.[0], אנחנו קוראים את מה שהשרת שלח: decoded.role
+            role: decoded.role || 'user', 
+            // -------------------
             picture: decoded.picture,
         });
     } catch (e) {
@@ -66,7 +65,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // --- 1. לוגין רגיל (טופס) ---
   const login = async (email: string, pass: string) => {
     const data = await authService.login(email, pass);
-    handleTokenProcessing(data.access_token); // שולחים את הטוקן שקיבלנו לעיבוד
+    handleTokenProcessing(data.access_token);
   };
 
   // --- 2. לוגין ישיר עם טוקן (גוגל) ---
@@ -77,7 +76,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // --- 3. הרשמה ---
   const register = async (first: string, last: string, email: string, pass: string) => {
     const data = await authService.register(first, last, email, pass);
-    handleTokenProcessing(data.access_token); // מחברים מיד אחרי הרשמה
+    handleTokenProcessing(data.access_token); 
   };
 
   const logout = () => {

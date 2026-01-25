@@ -1,10 +1,11 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Order, OrderStatus} from './entities/order.entity';
+import { Order, OrderStatus } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
 import { CartService } from 'src/cart/cart.service';
 import { Product } from 'src/products/entities/product.entity';
+import { CreateOrderDto } from './dto/create-order.dto'; // <--- 1. ייבוא ה-DTO
 
 @Injectable()
 export class OrdersService {
@@ -15,10 +16,11 @@ export class OrdersService {
     private orderItemsRepository: Repository<OrderItem>,
     @InjectRepository(Product)
     private productsRepository: Repository<Product>,
-    private cartService: CartService, // הזרקת העגלה
+    private cartService: CartService,
   ) {}
 
-  async create(userId: number) {
+  // 2. עדכון החתימה: מקבלים גם userId וגם את פרטי המשלוח
+  async create(userId: number, createOrderDto: CreateOrderDto) {
     // 1. שליפת העגלה של המשתמש
     const cart = await this.cartService.findCartByUserId(userId);
 
@@ -26,11 +28,16 @@ export class OrdersService {
       throw new BadRequestException('Cart is empty');
     }
 
-    // 2. יצירת ההזמנה הראשית (ה"קבל")
+    // 2. יצירת ההזמנה הראשית
     const order = this.ordersRepository.create({
       user: { id: userId },
       status: OrderStatus.PENDING,
-      totalAmount: 0, // נחשב את זה תכף
+      totalAmount: 0, 
+      // --- הוספת פרטי המשלוח מהטופס ---
+      shippingAddress: createOrderDto.shippingAddress,
+      city: createOrderDto.city,
+      phone: createOrderDto.phone,
+      // -------------------------------
     });
     
     // שומרים כדי לקבל ID להזמנה
@@ -44,6 +51,7 @@ export class OrdersService {
     
       // בדיקת מלאי
       if(cartItem.product.stock < cartItem.quantity){
+        // אופציונלי: אפשר למחוק את ההזמנה שיצרנו אם נכשלים פה, או להשתמש ב-Transaction
         throw new BadRequestException(`Product ${cartItem.product.name} is out of stock`);
       }
 
@@ -76,14 +84,18 @@ export class OrdersService {
   
   // פונקציה למנהלים: לראות את כל ההזמנות
   async findAll() {
-    return this.ordersRepository.find({ relations: ['user', 'items', 'items.product'] });
+    return this.ordersRepository.find({ 
+        relations: ['user', 'items', 'items.product'],
+        order: { orderDate: 'DESC' } // הכי חדש למעלה
+    });
   }
 
   // פונקציה למשתמש: לראות את ההזמנות שלי
   async findMyOrders(userId: number) {
      return this.ordersRepository.find({ 
        where: { user: { id: userId } },
-       relations: ['items', 'items.product'] 
+       relations: ['items', 'items.product'],
+       order: { orderDate: 'DESC' } // הכי חדש למעלה
      });
   }
-} 
+}

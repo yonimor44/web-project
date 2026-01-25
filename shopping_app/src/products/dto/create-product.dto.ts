@@ -1,4 +1,5 @@
 import { IsString, IsNotEmpty, IsNumber, Min, IsUrl, IsBoolean, IsOptional } from 'class-validator';
+import { Type } from 'class-transformer'; // <--- חובה לייבא את זה
 
 export class CreateProductDto {
   @IsString()
@@ -6,22 +7,43 @@ export class CreateProductDto {
   name: string;
 
   @IsString()
-  @IsNotEmpty()
-  description: string;
+  @IsOptional() // עדיף שיהיה אופציונלי
+  description?: string;
 
   @IsNumber()
-  @Min(0) // מחיר לא יכול להיות שלילי
+  @Min(0)
+  @Type(() => Number) // <--- קריטי! מונע שגיאות המרה
   price: number;
 
   @IsNumber()
-  @Min(0) // מלאי לא יכול להיות שלילי
+  @Min(0)
+  @Type(() => Number) // <--- קריטי!
   stock: number;
 
   @IsString()
-  @IsNotEmpty()
-  category: string;
+  @IsOptional() // שינינו לאופציונלי למקרה שזה ריק
+  category?: string;
 
-  @IsUrl({}, { message: 'Image must be a valid URL link' }) // ולידציה שזה באמת לינק
+  @IsString()
+  @IsOptional()
+  brand?: string; // חדש
+
+  @IsString()
+  @IsOptional()
+  carMake?: string; // חדש
+
+  @IsString()
+  @IsOptional()
+  scale?: string; // חדש
+
+  @IsString()
+  @IsOptional()
+  color?: string; // חדש
+
+  @IsString()
+  @IsNotEmpty()
+  // @IsUrl({}, { message: 'Image must be a valid URL link' }) 
+  // הערה: לפעמים IsUrl קשוח מדי עם לינקים ארוכים, אם זה עושה בעיות נשאיר רק IsString
   imageUrl: string;
 
   @IsBoolean()

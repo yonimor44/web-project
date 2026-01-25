@@ -10,8 +10,10 @@ interface CartContextType {
   loading: boolean;
   addToCart: (productId: number, quantity?: number) => Promise<void>;
   removeFromCart: (productId: number) => Promise<void>;
-  updateQuantity?: (productId: number, quantity: number) => Promise<void>;
+  updateQuantity: (productId: number, quantity: number) => Promise<void>;
+  clearCart: () => void; // <--- חדש: פונקציה לריקון העגלה אחרי קנייה
   totalItems: number;
+  total: number; // <--- חדש: הסכום הכולל לתשלום
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -36,10 +38,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       const data = await cartService.getCart();
       setCart(data);
     } catch (error) {
-      console.log('Cart fetch failed');
+      console.log('Cart fetch failed (probably empty)');
       if (!cart) setCart(null);
     } finally {
-     if (showLoading) setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
@@ -48,7 +50,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     fetchCart(true);
   }, [user]);
 
-  // --- התיקון הגדול נמצא פה ---
   const addToCart = async (productId: number, quantity: number = 1) => {
     if (!user) {
         setSnackbarMessage('יש להתחבר כדי להוסיף לעגלה');
@@ -58,12 +59,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     }
 
     try {
-      // 1. שולחים בקשה לשרת להוסיף פריט
       await cartService.addToCart(productId, quantity);
-      
-      // 2. במקום להשתמש בתשובה (שהיא רק פריט בודד ושברה לך את האתר),
-      // אנחנו מבקשים את העגלה המלאה מחדש!
-      await fetchCart(false);
+      await fetchCart(false); // מרעננים את העגלה
       
       setSnackbarMessage('המוצר נוסף לעגלה בהצלחה! 🛒');
       setSnackbarSeverity('success');
@@ -80,7 +77,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const removeFromCart = async (productId: number) => {
     try {
         await cartService.removeFromCart(productId);
-        // גם כאן, מרעננים את העגלה כולה
         await fetchCart(false); 
         
         setSnackbarMessage('המוצר הוסר מהעגלה');
@@ -94,20 +90,41 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const updateQuantity = async (productId: number, quantity: number) => {
     try {
         await cartService.updateQuantity(productId, quantity);
-        await fetchCart(false); // מרעננים את העגלה מיד
+        await fetchCart(false);
     } catch (error: any) {
         console.error('Failed to update quantity', error);
         setSnackbarMessage(error.response?.data?.message || 'שגיאה בעדכון כמות');
         setSnackbarSeverity('error');
         setSnackbarOpen(true);
     }
-};
+  };
+
+  // --- פונקציה חדשה: ריקון עגלה מקומית ---
+  const clearCart = () => {
+      setCart(null);
+      // אופציונלי: אפשר גם לקרוא ל-fetchCart כדי לוודא סנכרון עם השרת
+      // fetchCart(false); 
+  };
 
   // חישוב סך הפריטים
   const totalItems = (cart?.items || []).reduce((sum, item) => sum + item.quantity, 0);
 
+  // --- חישוב חדש: סכום כולל לתשלום ---
+  const total = (cart?.items || []).reduce((sum, item) => {
+      return sum + (Number(item.product.price) * item.quantity);
+  }, 0);
+
   return (
-    <CartContext.Provider value={{ cart, loading, addToCart, removeFromCart, updateQuantity, totalItems }}>
+    <CartContext.Provider value={{ 
+        cart, 
+        loading, 
+        addToCart, 
+        removeFromCart, 
+        updateQuantity, 
+        clearCart, // חשיפת הפונקציה
+        totalItems,
+        total // חשיפת המחיר הכולל
+    }}>
       {children}
       
       <Snackbar 

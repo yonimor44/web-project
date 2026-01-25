@@ -124,7 +124,7 @@ export const CartPage = () => {
             variant="contained" 
             size="large" 
             fullWidth 
-            onClick={() => alert('מעבר לתשלום - בקרוב!')}
+            onClick={() => navigate('/checkout')}
             sx={{ py: 1.5, fontSize: '1.1rem' }}
           >
             לקופה

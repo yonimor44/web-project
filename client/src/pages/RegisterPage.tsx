@@ -1,20 +1,25 @@
 import { useState } from 'react';
-import { Container, Paper, Typography, TextField, Button, Box, Alert } from '@mui/material';
+import { Container, Paper, Typography, TextField, Button, Box, Alert, InputAdornment, IconButton } from '@mui/material';
+import Visibility from '@mui/icons-material/Visibility';
+import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 export const RegisterPage = () => {
-  const { register } = useAuth(); // הפונקציה מהקונטקסט
+  const { register } = useAuth(); // שימוש בקונטקסט
   const navigate = useNavigate();
   
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     email: '',
-    password: ''
+    password: '',
+    confirmPassword: '' // 1. שדה חדש לאימות
   });
-  
+
+  const [showPassword, setShowPassword] = useState(false); // 2. מצב תצוגת סיסמה
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -23,26 +28,42 @@ export const RegisterPage = () => {
     });
   };
 
+  const handleClickShowPassword = () => setShowPassword((show) => !show);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    // בדיקה בסיסית לפני שליחה
+    // 3. בדיקת תאימות סיסמאות
+    if (formData.password !== formData.confirmPassword) {
+        setError('הסיסמאות אינן תואמות! אנא נסה שוב.');
+        return;
+    }
+
     if (formData.password.length < 6) {
         setError('הסיסמה חייבת להכיל לפחות 6 תווים');
         return;
     }
 
+    setLoading(true);
+
     try {
-      // שולחים את המידע לשרת דרך הקונטקסט
+      // שולחים לשרת רק את מה שצריך (בלי confirmPassword)
       await register(formData.firstName, formData.lastName, formData.email, formData.password);
       
-      // אם ההרשמה הצליחה, הקונטקסט כבר יחבר אותנו אוטומטית
-      navigate('/'); // מעבירים לדף הבית
+      // אם ההרשמה הצליחה, מציגים הודעה ומעבירים לדף הבית
+      // (בדרך כלל register ב-AuthContext גם עושה לוגין אוטומטי ושומר את הטוקן)
+      navigate('/'); 
     } catch (err: any) {
         console.error(err);
-        // מציגים את השגיאה שהשרת החזיר (למשל: "משתמש כבר קיים")
-        setError(err.response?.data?.message || 'שגיאה בהרשמה. נסה שוב מאוחר יותר.');
+        const serverMsg = err.response?.data?.message;
+        if (Array.isArray(serverMsg)) {
+            setError(serverMsg[0]);
+        } else {
+            setError(serverMsg || 'שגיאה בהרשמה. נסה שוב מאוחר יותר.');
+        }
+    } finally {
+        setLoading(false);
     }
   };
 
@@ -77,10 +98,43 @@ export const RegisterPage = () => {
             value={formData.email} onChange={handleChange}
           />
           
+          {/* שדה סיסמה עם כפתור העין */}
           <TextField
-            margin="normal" required fullWidth label="סיסמה" name="password" type="password"
-            value={formData.password} onChange={handleChange}
+            margin="normal" 
+            required 
+            fullWidth 
+            label="סיסמה" 
+            name="password" 
+            type={showPassword ? 'text' : 'password'} 
+            value={formData.password} 
+            onChange={handleChange}
             helperText="מינימום 6 תווים"
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    aria-label="toggle password visibility"
+                    onClick={handleClickShowPassword}
+                    edge="end"
+                  >
+                    {showPassword ? <VisibilityOff /> : <Visibility />}
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
+          />
+          
+          {/* שדה אימות סיסמה */}
+          <TextField
+            margin="normal" 
+            required 
+            fullWidth 
+            label="אימות סיסמה" 
+            name="confirmPassword" 
+            type="password"
+            value={formData.confirmPassword} 
+            onChange={handleChange}
+            error={formData.confirmPassword !== '' && formData.password !== formData.confirmPassword}
           />
           
           <Button 
@@ -88,9 +142,10 @@ export const RegisterPage = () => {
             fullWidth 
             variant="contained" 
             size="large" 
+            disabled={loading}
             sx={{ mt: 3, mb: 2, py: 1.5, fontSize: '1.1rem' }}
           >
-            הירשם
+            {loading ? 'רושם...' : 'הירשם'}
           </Button>
           
           <Box sx={{ mt: 2, textAlign: 'center' }}>

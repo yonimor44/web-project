@@ -27,6 +27,17 @@ export class Order {
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   totalAmount: number;
 
+  // --- הוספה: פרטי משלוח (חובה לכל הזמנה) ---
+  @Column()
+  shippingAddress: string;
+
+  @Column()
+  city: string;
+
+  @Column()
+  phone: string;
+  // ------------------------------------------
+
   // קשר למשתמש (משתמש אחד -> הרבה הזמנות)
   @ManyToOne(() => User, (user) => user.orders)
   user: User;

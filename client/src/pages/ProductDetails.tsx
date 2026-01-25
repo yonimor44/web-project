@@ -18,7 +18,6 @@ export const ProductDetails = () => {
   const { addToCart } = useCart(); 
   const { user } = useAuth();
   
-  // בדיקה אם אנחנו במסך ממש קטן (טלפון) כדי לא לשבור את התצוגה שם
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -26,7 +25,7 @@ export const ProductDetails = () => {
     const fetchProduct = async () => {
       if (!id) return;
       try {
-        const data = await productsService.getOne(parseInt(id));
+        const data = await productsService.getOne(id);
         setProduct(data);
       } catch (error) {
         console.error('Failed to load product', error);
@@ -62,32 +61,40 @@ export const ProductDetails = () => {
   return (
     <Box sx={{ 
       width: '100%', 
-      minHeight: '90vh', // תופס את כל הגובה
+      minHeight: '90vh', 
       display: 'flex', 
-      // בטלפון זה יהיה טור, במחשב זה יהיה שורה בכוח
       flexDirection: isMobile ? 'column' : 'row', 
-      bgcolor: '#fff' 
+      bgcolor: '#fff',
+      position: 'relative' // --- חשוב: מאפשר לכפתור להיות ממוקם ביחס לכל העמוד ---
     }}>
       
-      {/* --- צד ימין: תמונה (50% מהמסך) --- */}
+      {/* --- הכפתור עבר לכאן (עכשיו הוא ילד ישיר של הקונטיינר הראשי) --- */}
+      <Button 
+          startIcon={<ArrowBackIcon />} 
+          onClick={() => navigate('/')} 
+          sx={{ 
+              position: 'absolute', 
+              top: 20, 
+              right: 20, // נצמד לפינה הימנית של המסך כולו
+              zIndex: 100, // שיהיה מעל הכל
+              backgroundColor: 'rgba(255,255,255,0.8)', // רקע חצי שקוף למקרה שהוא עולה על משהו
+              '&:hover': { backgroundColor: 'rgba(255,255,255,1)' },
+              boxShadow: 1
+          }}
+      >
+          חזרה לקטלוג
+      </Button>
+      {/* ------------------------------------------------------------------ */}
+
+      {/* --- צד ימין: תמונה --- */}
       <Box sx={{ 
-        flex: 1, // לוקח 50% מהרוחב
-        position: 'relative',
-        bgcolor: '#f8f9fa', // רקע אפור עדין מאוד לתמונה
+        flex: 1, 
+        bgcolor: '#f8f9fa', 
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
         p: 4
       }}>
-        {/* כפתור חזרה צף מעל התמונה */}
-        <Button 
-          startIcon={<ArrowBackIcon />} 
-          onClick={() => navigate('/')} 
-          sx={{ position: 'absolute', top: 20, right: 20, zIndex: 10 }}
-        >
-          חזרה לקטלוג
-        </Button>
-
         <Box 
           component="img"
           src={product.imageUrl}
@@ -101,13 +108,13 @@ export const ProductDetails = () => {
         />
       </Box>
 
-      {/* --- צד שמאל: פרטים (50% מהמסך) --- */}
+      {/* --- צד שמאל: פרטים --- */}
       <Box sx={{ 
-        flex: 1, // לוקח 50% מהרוחב
+        flex: 1, 
         display: 'flex',
         flexDirection: 'column',
-        justifyContent: 'center', // ממקם את הטקסט באמצע הגובה
-        p: { xs: 4, md: 8, lg: 10 } // ריפוד נדיב
+        justifyContent: 'center', 
+        p: { xs: 4, md: 8, lg: 10 } 
       }}>
         
         <Typography variant="overline" color="text.secondary" sx={{ fontSize: '1.1rem', letterSpacing: 3, mb: 1 }}>
@@ -138,7 +145,6 @@ export const ProductDetails = () => {
 
         <Divider sx={{ mb: 5 }} />
 
-        {/* כפתורים בגודל רגיל ונוח */}
         <Box sx={{ display: 'flex', gap: 2, maxWidth: '500px' }}>
           <Button 
             variant="contained" 

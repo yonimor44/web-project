@@ -7,6 +7,10 @@ import { ProductDetails } from './pages/ProductDetails';
 import { CartPage } from './pages/CartPage';
 import { CartProvider } from './context/CartContext';
 import { RegisterPage } from './pages/RegisterPage';
+import { CheckoutPage } from './pages/CheckoutPage';
+import { MyOrdersPage } from './pages/MyOrdersPage';
+import { AdminPage } from './pages/AdminPage';
+import { AdminGuard } from './components/AdminGuard';
 
 function App() {
   return (
@@ -23,6 +27,16 @@ function App() {
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/product/:id" element={<ProductDetails />} />
           <Route path="/cart" element={<CartPage />} />
+          <Route path="/checkout" element={<CheckoutPage />} />
+          <Route path="/my-orders" element={<MyOrdersPage />} />
+          <Route 
+            path="/admin" 
+            element={
+              <AdminGuard>
+                <AdminPage />
+              </AdminGuard>
+            } 
+          />
         </Routes>
       </div>
     </BrowserRouter>

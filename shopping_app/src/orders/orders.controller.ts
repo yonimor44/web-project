@@ -1,6 +1,7 @@
-import { Controller, Get, Post, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, UseGuards, Request, Body } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { AuthGuard } from '@nestjs/passport';
+import { CreateOrderDto } from './dto/create-order.dto';
 
 @Controller('orders')
 @UseGuards(AuthGuard('jwt')) // חייב להיות מחובר
@@ -8,8 +9,8 @@ export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
   @Post() // POST /orders -> מבצע הזמנה ממה שיש בעגלה
-  create(@Request() req) {
-    return this.ordersService.create(req.user.userId);
+  create(@Request() req, @Body() createOrderDto: CreateOrderDto) {
+    return this.ordersService.create(req.user.userId, createOrderDto);
   }
 
   @Get() // GET /orders -> מביא את ההזמנות שלי

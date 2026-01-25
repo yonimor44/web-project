@@ -1,49 +1,52 @@
 import { useState, useEffect } from 'react';
-import { Container, Paper, Typography, TextField, Button, Box, Divider, Alert } from '@mui/material';
-import GoogleIcon from '@mui/icons-material/Google'; // וודא שיש לך את הספרייה @mui/icons-material
+import { Container, Paper, Typography, TextField, Button, Box, Divider, Alert, InputAdornment, IconButton } from '@mui/material';
+import GoogleIcon from '@mui/icons-material/Google';
+import Visibility from '@mui/icons-material/Visibility';
+import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export const LoginPage = () => {
-  // מושכים את הפונקציות מהקונטקסט שיצרנו
   const { login, loginWithToken } = useAuth();
-  
   const navigate = useNavigate();
   const location = useLocation();
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  
+  // סטייט חדש להצגה/הסתרה של הסיסמה
+  const [showPassword, setShowPassword] = useState(false);
 
-  // 1. טיפול בחזרה מגוגל (כשהשרת מחזיר אותנו עם ?token=...)
+  // 1. טיפול בחזרה מגוגל
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const token = params.get('token');
     if (token) {
-      // אם יש טוקן בכתובת, מתחברים איתו מיד
       loginWithToken(token); 
-      navigate('/'); // ומעבירים לדף הבית
+      navigate('/'); 
     }
   }, [location, loginWithToken, navigate]);
 
-  // 2. הפניה לגוגל (כמו שהיה לך קודם)
   const handleGoogleLogin = () => {
     window.location.href = 'http://localhost:3000/auth/google';
   };
 
-  // 3. התחברות רגילה עם אימייל וסיסמה
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault(); // מונע רענון של הדף
-    setError(''); // מנקים שגיאות קודמות
+    e.preventDefault();
+    setError('');
 
     try {
       await login(email, password);
-      navigate('/'); // הצלחה! עוברים לדף הבית
+      navigate('/'); 
     } catch (err: any) {
       console.error(err);
       setError('שם משתמש או סיסמה שגויים');
     }
   };
+
+  // פונקציה להחלפת מצב תצוגת סיסמה
+  const handleClickShowPassword = () => setShowPassword((show) => !show);
 
   return (
     <Container maxWidth="xs" sx={{ mt: 8 }}>
@@ -56,10 +59,8 @@ export const LoginPage = () => {
           ברוך הבא! התחבר כדי להמשיך
         </Typography>
 
-        {/* הצגת שגיאה אם יש */}
         {error && <Alert severity="error" sx={{ width: '100%', mb: 2 }}>{error}</Alert>}
 
-        {/* --- טופס התחברות רגיל --- */}
         <Box component="form" onSubmit={handleSubmit} sx={{ width: '100%' }}>
           <TextField
             margin="normal"
@@ -71,14 +72,29 @@ export const LoginPage = () => {
             onChange={(e) => setEmail(e.target.value)}
             autoFocus
           />
+          
+          {/* שדה סיסמה משודרג עם כפתור עין */}
           <TextField
             margin="normal"
             required
             fullWidth
             label="סיסמה"
-            type="password"
+            type={showPassword ? 'text' : 'password'} // משתנה לפי הסטייט
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    aria-label="toggle password visibility"
+                    onClick={handleClickShowPassword}
+                    edge="end"
+                  >
+                    {showPassword ? <VisibilityOff /> : <Visibility />}
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
           />
           
           <Box sx={{ textAlign: 'left', mt: 1 }}>
@@ -97,11 +113,9 @@ export const LoginPage = () => {
             התחבר
           </Button>
         </Box>
-        {/* ------------------------- */}
 
         <Divider sx={{ width: '100%', my: 2 }}>או</Divider>
 
-        {/* כפתור גוגל */}
         <Button
           variant="outlined"
           fullWidth
@@ -112,7 +126,6 @@ export const LoginPage = () => {
           המשך עם Google
         </Button>
 
-        {/* קישור להרשמה */}
         <Box sx={{ mt: 1, textAlign: 'center' }}>
           <Typography variant="body2" display="inline">
             אין לך עדיין חשבון?{' '}

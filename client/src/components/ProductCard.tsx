@@ -1,7 +1,7 @@
 import React from 'react';
-import { Card, CardMedia, CardContent, CardActions, Typography, Button, Chip, Box } from '@mui/material';
+import { Card, CardMedia, CardContent, CardActions, Typography, Button, Chip, Box, Stack } from '@mui/material';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'; // אייקון לפרטים
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'; 
 import { useNavigate } from 'react-router-dom';
 import type { Product } from '../types/product.types';
 import { useCart } from '../context/CartContext';
@@ -9,9 +9,11 @@ import { useAuth } from '../context/AuthContext';
 
 interface Props {
   product: Product;
+  // פונקציה אופציונלית לסינון מהיר (חדש!)
+  onQuickFilter?: (type: string, value: string) => void;
 }
 
-export const ProductCard: React.FC<Props> = ({ product }) => {
+export const ProductCard: React.FC<Props> = ({ product, onQuickFilter }) => {
   const navigate = useNavigate();
   const { addToCart } = useCart();
   const { user } = useAuth();
@@ -28,18 +30,41 @@ export const ProductCard: React.FC<Props> = ({ product }) => {
     addToCart(product.id, 1);
   };
 
+  // פונקציה לטיפול בלחיצה על תגית (חדש!)
+  const handleChipClick = (e: React.MouseEvent, type: string, value: string) => {
+      e.stopPropagation(); // שלא יכנס לדף המוצר
+      if (onQuickFilter) {
+          onQuickFilter(type, value);
+      }
+  };
+
   return (
     <Card 
-      sx={{ maxWidth: 345, height: '100%', display: 'flex', flexDirection: 'column', boxShadow: 3, cursor: 'pointer', transition: '0.2s', '&:hover': { transform: 'scale(1.02)' } }}
+      sx={{ 
+        maxWidth: 345, 
+        height: '100%', 
+        display: 'flex', 
+        flexDirection: 'column', 
+        boxShadow: 3, 
+        cursor: 'pointer', 
+        transition: '0.2s', 
+        '&:hover': { transform: 'scale(1.02)' } 
+      }}
       onClick={() => navigate(`/product/${product.id}`)}
     >
-      <CardMedia
-        component="img"
-        height="200"
-        image={product.imageUrl}
-        alt={product.name}
-        sx={{ objectFit: 'cover' }}
-      />
+      <Box sx={{ position: 'relative' }}>
+          <CardMedia
+            component="img"
+            height="200"
+            image={product.imageUrl}
+            alt={product.name}
+            sx={{ objectFit: 'cover' }}
+          />
+          {/* במידה והמלאי אזל, אפשר להוסיף חיווי כאן */}
+          {product.stock === 0 && (
+             <Chip label="אזל המלאי" color="error" size="small" sx={{ position: 'absolute', top: 10, right: 10 }} />
+          )}
+      </Box>
       
       <CardContent sx={{ flexGrow: 1 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
@@ -51,20 +76,51 @@ export const ProductCard: React.FC<Props> = ({ product }) => {
             </Typography>
         </Box>
 
-        <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
-            {product.scale && <Chip label={product.scale} size="small" variant="outlined" />}
-            {product.brand && <Chip label={product.brand} size="small" color="secondary" variant="outlined" />}
-        </Box>
+        {/* --- אזור התגיות הלחיצות --- */}
+        <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mb: 2 }}>
+            {/* קטגוריה */}
+            <Chip 
+                label={product.category} 
+                size="small" 
+                color="primary" 
+                variant="outlined"
+                onClick={(e) => handleChipClick(e, 'category', product.category)}
+                sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'rgba(25, 118, 210, 0.04)' } }}
+            />
+            
+            {/* קנה מידה */}
+            {product.scale && (
+                <Chip 
+                    label={product.scale} 
+                    size="small" 
+                    variant="outlined" 
+                    onClick={(e) => handleChipClick(e, 'scale', product.scale)}
+                    sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.04)' } }}
+                />
+            )}
+
+            {/* מותג (אם יש) */}
+            {product.brand && (
+                <Chip 
+                    label={product.brand} 
+                    size="small" 
+                    color="secondary" 
+                    variant="outlined" 
+                    onClick={(e) => handleChipClick(e, 'brand', product.brand)}
+                    sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'rgba(156, 39, 176, 0.04)' } }}
+                />
+            )}
+        </Stack>
+        {/* --------------------------- */}
 
         <Typography variant="body2" color="text.secondary">
           {product.description ? product.description.substring(0, 80) : 'אין תיאור זמין'}...
         </Typography>
       </CardContent>
 
-      {/* --- אזור הכפתורים המעודכן (הסדר התהפך) --- */}
       <CardActions sx={{ flexDirection: 'column', gap: 1.5, px: 2, pb: 2 }}>
         
-        {/* 1. כפתור פרטים - למעלה (עם מסגרת) */}
+        {/* כפתור פרטים */}
         <Button 
             variant="outlined" 
             fullWidth
@@ -79,16 +135,17 @@ export const ProductCard: React.FC<Props> = ({ product }) => {
           פרטים נוספים
         </Button>
 
-        {/* 2. כפתור הוספה לעגלה - למטה (מלא וצבעוני) */}
+        {/* כפתור הוספה לעגלה */}
         <Button 
             variant="contained" 
             fullWidth
             size="medium"
             startIcon={<ShoppingCartIcon />}
             onClick={handleAddToCart}
+            disabled={product.stock === 0} // משביתים אם אין מלאי
             sx={{ py: 1 }}
         >
-          הוסף לעגלה
+          {product.stock === 0 ? 'אזל המלאי' : 'הוסף לעגלה'}
         </Button>
 
       </CardActions>

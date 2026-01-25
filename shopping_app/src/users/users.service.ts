@@ -15,7 +15,6 @@ export class UsersService {
     private cartService: CartService,
   ) {}
 
-
   // יצירת משתמש רגיל (הרשמה עם אימייל וסיסמה)
   // ======================================================
   async create(createUserDto: CreateUserDto) {
@@ -28,23 +27,28 @@ export class UsersService {
       throw new BadRequestException('Email already in use');
     }
 
-    // 2. הצפנת הסיסמה (Hashing)
-    const salt = await bcrypt.genSalt(); // יצירת "מלח" (תוספת אקראית להצפנה)
+    // 2. הצפנת הסיסמה (Hashing) - זה המקום היחיד שזה קורה!
+    const salt = await bcrypt.genSalt(); 
     const hashedPassword = await bcrypt.hash(createUserDto.password, salt);
 
-    // 3. יצירת האובייקט לשמירה (עם הסיסמה המוצפנת במקום המקורית)
+    // 3. יצירת האובייקט לשמירה
     const user = this.usersRepository.create({
       ...createUserDto,
-      password: hashedPassword,
-      // תוספת חשובה: מסמנים שהמשתמש הזה נרשם רגיל ('local')
+      password: hashedPassword, // שומרים את המוצפנת
       provider: 'local', 
+      role: UserRole.USER // ברירת מחדל, אלא אם כן נשלח אחרת
     });
 
     // 4. שמירה במסד הנתונים
     const savedUser = await this.usersRepository.save(user);
 
     // 5. יצירת עגלה ריקה למשתמש החדש
-    await this.cartService.createForUser(savedUser);
+    try {
+        await this.cartService.createForUser(savedUser);
+    } catch (e) {
+        console.error("Failed to create cart for user", e);
+        // לא עוצרים את ההרשמה בגלל עגלה, אבל כדאי לדעת
+    }
 
     return savedUser;
   }
@@ -53,12 +57,10 @@ export class UsersService {
   // פעולות שליפה ועדכון (CRUD)
   // ======================================================
 
-  // חיפוש לפי אימייל (משמש בעיקר את ה-AuthService בהתחברות)
   async findOne(email: string): Promise<User | null> {
     return this.usersRepository.findOne({ where: { email } });
   }
   
-  // חיפוש לפי ID (כולל זריקת שגיאה אם לא נמצא)
   async findOneById(id: number) {
     const user = await this.usersRepository.findOne({ where: { id } });
     if (!user) {
@@ -67,7 +69,6 @@ export class UsersService {
     return user;
   }
 
-  // עדכון פרטי משתמש
   async update(id: number, updateUserDto: UpdateUserDto) {
     const user = await this.findOneById(id);
 
@@ -77,55 +78,52 @@ export class UsersService {
       updateUserDto.password = await bcrypt.hash(updateUserDto.password, salt);
     }
 
-    // מיזוג העדכונים לתוך המשתמש הקיים ושמירה
     Object.assign(user, updateUserDto);
     return this.usersRepository.save(user);
   }
 
-  // מחיקת משתמש
   async remove(id: number) {
     const user = await this.findOneById(id);
     return this.usersRepository.remove(user);
   }
 
   // ======================================================
-  // הוספה חדשה: טיפול במשתמשי גוגל (OAuth)
+  // OAuth
   // ======================================================
   async findOrCreateOAuthUser(profile: any) {
     const email = profile.email;
     
-    // 1. מחפשים האם המשתמש כבר קיים אצלנו לפי האימייל
     let user = await this.usersRepository.findOne({ where: { email } });
 
     if (user) {
       if (profile.picture && user.picture !== profile.picture) {
         user.picture = profile.picture;
       }
-
       if (!user.googleId) {
         user.googleId = profile.id;
       }
-        // אנו לא משנים את ה-provider ל-'google' אם הוא היה 'local', 
-        // כדי לשמור על היסטוריית ההרשמה המקורית שלו.
-        await this.usersRepository.save(user);
+       // מעדכנים אם צריך
+       await this.usersRepository.save(user);
+       // אם למשתמש אין עגלה (מצב נדיר), ניצור לו
+       const cart = await this.cartService.findCartByUserId(user.id);
+       if (!cart) await this.cartService.createForUser(user);
+       
       return user;
     }
 
-    // 2. אם המשתמש לא קיים - יוצרים משתמש חדש
+    // יצירת משתמש חדש מגוגל
     const newUser = this.usersRepository.create({
       email: email,
       firstName: profile.firstName, 
       lastName: profile.lastName,
-      googleId: profile.id, // שומרים את המזהה של גוגל
-      picture: profile.picture, // <--- הוספנו: שמירת התמונה
-      provider: 'google',   // מסמנים שהוא נרשם דרך גוגל
-      password: '',         // אין לו סיסמה אצלנו!
-      role: UserRole.USER      // ברירת מחדל: לקוח רגיל
+      googleId: profile.id, 
+      picture: profile.picture, 
+      provider: 'google',   
+      password: '',         
+      role: UserRole.USER   
     });
 
     const savedUser = await this.usersRepository.save(newUser);
-    
-    // 3. לא לשכוח: גם למשתמש גוגל מגיעה עגלה!
     await this.cartService.createForUser(savedUser);
     
     return savedUser;
