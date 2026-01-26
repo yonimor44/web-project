@@ -1,12 +1,15 @@
 import { useState } from 'react';
-import { Container, Paper, Typography, TextField, Button, Box, Alert, InputAdornment, IconButton } from '@mui/material';
+import { Container, Paper, Typography, TextField, Button, Box, Alert, InputAdornment, IconButton, Avatar } from '@mui/material';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
+import PersonAddOutlinedIcon from '@mui/icons-material/PersonAddOutlined';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
+const FERRARI_RED = '#d32f2f';
+
 export const RegisterPage = () => {
-  const { register } = useAuth(); // שימוש בקונטקסט
+  const { register } = useAuth();
   const navigate = useNavigate();
   
   const [formData, setFormData] = useState({
@@ -14,10 +17,10 @@ export const RegisterPage = () => {
     lastName: '',
     email: '',
     password: '',
-    confirmPassword: '' // 1. שדה חדש לאימות
+    confirmPassword: ''
   });
 
-  const [showPassword, setShowPassword] = useState(false); // 2. מצב תצוגת סיסמה
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -34,7 +37,6 @@ export const RegisterPage = () => {
     e.preventDefault();
     setError('');
 
-    // 3. בדיקת תאימות סיסמאות
     if (formData.password !== formData.confirmPassword) {
         setError('הסיסמאות אינן תואמות! אנא נסה שוב.');
         return;
@@ -48,11 +50,7 @@ export const RegisterPage = () => {
     setLoading(true);
 
     try {
-      // שולחים לשרת רק את מה שצריך (בלי confirmPassword)
       await register(formData.firstName, formData.lastName, formData.email, formData.password);
-      
-      // אם ההרשמה הצליחה, מציגים הודעה ומעבירים לדף הבית
-      // (בדרך כלל register ב-AuthContext גם עושה לוגין אוטומטי ושומר את הטוקן)
       navigate('/'); 
     } catch (err: any) {
         console.error(err);
@@ -68,100 +66,117 @@ export const RegisterPage = () => {
   };
 
   return (
-    <Container maxWidth="xs" sx={{ mt: 8 }}>
-      <Paper elevation={3} sx={{ p: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', borderRadius: 2 }}>
-        
-        <Typography component="h1" variant="h4" sx={{ mb: 1, fontWeight: 'bold' }}>
-          הרשמה למערכת 📝
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
-          צור חשבון חדש והתחל לקנות
-        </Typography>
-
-        {error && <Alert severity="error" sx={{ width: '100%', mb: 2 }}>{error}</Alert>}
-
-        <Box component="form" onSubmit={handleSubmit} sx={{ width: '100%' }}>
+    <Box sx={{ 
+        minHeight: '90vh', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)' // רקע יוקרתי לכל המסך
+    }}>
+      <Container maxWidth="xs">
+        <Paper elevation={10} sx={{ 
+            p: 4, 
+            display: 'flex', 
+            flexDirection: 'column', 
+            alignItems: 'center', 
+            borderRadius: 6, // פינות מעוגלות לכרטיס
+            bgcolor: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(10px)'
+        }}>
           
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <TextField
+          {/* אייקון עגול בראש הטופס */}
+          <Avatar sx={{ m: 1, bgcolor: FERRARI_RED, width: 56, height: 56, boxShadow: '0 4px 10px rgba(211, 47, 47, 0.4)' }}>
+            <PersonAddOutlinedIcon fontSize="large" />
+          </Avatar>
+
+          <Typography component="h1" variant="h4" sx={{ mb: 1, fontWeight: '800', letterSpacing: '-0.5px' }}>
+            הרשמה למערכת
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
+            צור חשבון חדש והתחל לקנות
+          </Typography>
+
+          {error && <Alert severity="error" sx={{ width: '100%', mb: 2, borderRadius: 2 }}>{error}</Alert>}
+
+          <Box component="form" onSubmit={handleSubmit} sx={{ width: '100%' }}>
+            
+            {/* --- שימוש במבנה הגריד שביקשת (Box עם gap) --- */}
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <TextField
                 margin="normal" required fullWidth label="שם פרטי" name="firstName"
                 value={formData.firstName} onChange={handleChange} autoFocus
-            />
-            <TextField
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 50 } }} // שדה עגול
+              />
+              <TextField
                 margin="normal" required fullWidth label="שם משפחה" name="lastName"
                 value={formData.lastName} onChange={handleChange}
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 50 } }} // שדה עגול
+              />
+            </Box>
+
+            <TextField
+              margin="normal" required fullWidth label="כתובת אימייל" name="email" type="email"
+              value={formData.email} onChange={handleChange}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 50 } }}
             />
-          </Box>
-
-          <TextField
-            margin="normal" required fullWidth label="כתובת אימייל" name="email" type="email"
-            value={formData.email} onChange={handleChange}
-          />
-          
-          {/* שדה סיסמה עם כפתור העין */}
-          <TextField
-            margin="normal" 
-            required 
-            fullWidth 
-            label="סיסמה" 
-            name="password" 
-            type={showPassword ? 'text' : 'password'} 
-            value={formData.password} 
-            onChange={handleChange}
-            helperText="מינימום 6 תווים"
-            InputProps={{
-              endAdornment: (
-                <InputAdornment position="end">
-                  <IconButton
-                    aria-label="toggle password visibility"
-                    onClick={handleClickShowPassword}
-                    edge="end"
-                  >
-                    {showPassword ? <VisibilityOff /> : <Visibility />}
-                  </IconButton>
-                </InputAdornment>
-              ),
-            }}
-          />
-          
-          {/* שדה אימות סיסמה */}
-          <TextField
-            margin="normal" 
-            required 
-            fullWidth 
-            label="אימות סיסמה" 
-            name="confirmPassword" 
-            type="password"
-            value={formData.confirmPassword} 
-            onChange={handleChange}
-            error={formData.confirmPassword !== '' && formData.password !== formData.confirmPassword}
-          />
-          
-          <Button 
-            type="submit" 
-            fullWidth 
-            variant="contained" 
-            size="large" 
-            disabled={loading}
-            sx={{ mt: 3, mb: 2, py: 1.5, fontSize: '1.1rem' }}
-          >
-            {loading ? 'רושם...' : 'הירשם'}
-          </Button>
-          
-          <Box sx={{ mt: 2, textAlign: 'center' }}>
-            <Typography variant="body2" display="inline">
-                כבר יש לך חשבון?{' '}
-            </Typography>
+            
+            <TextField
+              margin="normal" required fullWidth label="סיסמה" name="password" 
+              type={showPassword ? 'text' : 'password'} 
+              value={formData.password} onChange={handleChange}
+              helperText="מינימום 8 תווים"
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 50 } }}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton onClick={handleClickShowPassword} edge="end" sx={{ mr: 1 }}>
+                      {showPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+            />
+            
+            <TextField
+              margin="normal" required fullWidth label="אימות סיסמה" name="confirmPassword" type="password"
+              value={formData.confirmPassword} onChange={handleChange}
+              error={formData.confirmPassword !== '' && formData.password !== formData.confirmPassword}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 50 } }}
+            />
+            
             <Button 
-                onClick={() => navigate('/login')} 
-                sx={{ fontWeight: 'bold', textTransform: 'none', minWidth: 'auto', p: 0, ml: 1 }}
+              type="submit" 
+              fullWidth 
+              variant="contained" 
+              size="large" 
+              disabled={loading}
+              sx={{ 
+                  mt: 3, mb: 2, py: 1.5, fontSize: '1.1rem',
+                  borderRadius: 50, // כפתור עגול
+                  bgcolor: FERRARI_RED, // אדום פרארי
+                  fontWeight: 'bold',
+                  boxShadow: '0 8px 20px rgba(211, 47, 47, 0.3)',
+                  '&:hover': { bgcolor: '#b71c1c', boxShadow: '0 12px 25px rgba(211, 47, 47, 0.4)' }
+              }}
             >
-                התחבר כאן
+              {loading ? 'רושם...' : 'הירשם'}
             </Button>
-          </Box>
+            
+            <Box sx={{ mt: 2, textAlign: 'center' }}>
+              <Typography variant="body2" display="inline" color="text.secondary">
+                  כבר יש לך חשבון?{' '}
+              </Typography>
+              <Button 
+                  onClick={() => navigate('/login')} 
+                  sx={{ fontWeight: 'bold', textTransform: 'none', minWidth: 'auto', p: 0, ml: 1, color: FERRARI_RED }}
+              >
+                  התחבר כאן
+              </Button>
+            </Box>
 
-        </Box>
-      </Paper>
-    </Container>
+          </Box>
+        </Paper>
+      </Container>
+    </Box>
   );
 };

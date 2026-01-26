@@ -16,9 +16,7 @@ export class UsersService {
   ) {}
 
   // יצירת משתמש רגיל (הרשמה עם אימייל וסיסמה)
-  // ======================================================
   async create(createUserDto: CreateUserDto) {
-    // 1. בדיקה אם האימייל כבר קיים במערכת
     const existingUser = await this.usersRepository.findOne({
       where: { email: createUserDto.email },
     });
@@ -27,35 +25,33 @@ export class UsersService {
       throw new BadRequestException('Email already in use');
     }
 
-    // 2. הצפנת הסיסמה (Hashing) - זה המקום היחיד שזה קורה!
     const salt = await bcrypt.genSalt(); 
     const hashedPassword = await bcrypt.hash(createUserDto.password, salt);
 
-    // 3. יצירת האובייקט לשמירה
     const user = this.usersRepository.create({
       ...createUserDto,
-      password: hashedPassword, // שומרים את המוצפנת
+      password: hashedPassword, 
       provider: 'local', 
-      role: UserRole.USER // ברירת מחדל, אלא אם כן נשלח אחרת
+      role: UserRole.USER // ברירת מחדל
     });
 
-    // 4. שמירה במסד הנתונים
     const savedUser = await this.usersRepository.save(user);
 
-    // 5. יצירת עגלה ריקה למשתמש החדש
     try {
         await this.cartService.createForUser(savedUser);
     } catch (e) {
         console.error("Failed to create cart for user", e);
-        // לא עוצרים את ההרשמה בגלל עגלה, אבל כדאי לדעת
     }
 
     return savedUser;
   }
 
-  // ======================================================
-  // פעולות שליפה ועדכון (CRUD)
-  // ======================================================
+  // --- חדש: פונקציה עבור האדמין לקבלת כל המשתמשים ---
+  async findAll() {
+    return this.usersRepository.find({
+        order: { id: 'ASC' }
+    });
+  }
 
   async findOne(email: string): Promise<User | null> {
     return this.usersRepository.findOne({ where: { email } });
@@ -69,10 +65,16 @@ export class UsersService {
     return user;
   }
 
+  // --- חדש: עדכון תפקיד המשתמש ---
+  async updateRole(id: number, role: string) {
+    // אנו ממירים ל-any כדי לעקוף בעיות טיפוס אם הסטרינג מגיע מהלקוח
+    return this.usersRepository.update(id, { role: role as any });
+  }
+  // --------------------------------
+
   async update(id: number, updateUserDto: UpdateUserDto) {
     const user = await this.findOneById(id);
 
-    // אם מנסים לעדכן סיסמה, צריך להצפין אותה מחדש
     if (updateUserDto.password) {
       const salt = await bcrypt.genSalt();
       updateUserDto.password = await bcrypt.hash(updateUserDto.password, salt);
@@ -87,9 +89,7 @@ export class UsersService {
     return this.usersRepository.remove(user);
   }
 
-  // ======================================================
   // OAuth
-  // ======================================================
   async findOrCreateOAuthUser(profile: any) {
     const email = profile.email;
     
@@ -102,16 +102,14 @@ export class UsersService {
       if (!user.googleId) {
         user.googleId = profile.id;
       }
-       // מעדכנים אם צריך
        await this.usersRepository.save(user);
-       // אם למשתמש אין עגלה (מצב נדיר), ניצור לו
+       
        const cart = await this.cartService.findCartByUserId(user.id);
        if (!cart) await this.cartService.createForUser(user);
        
       return user;
     }
 
-    // יצירת משתמש חדש מגוגל
     const newUser = this.usersRepository.create({
       email: email,
       firstName: profile.firstName, 

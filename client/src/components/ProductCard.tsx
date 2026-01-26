@@ -1,15 +1,16 @@
 import React from 'react';
-import { Card, CardMedia, CardContent, CardActions, Typography, Button, Chip, Box, Stack } from '@mui/material';
-import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'; 
+import { Card, CardMedia, CardContent, Typography, Button, Chip, Box, Stack } from '@mui/material';
+import AddShoppingCartIcon from '@mui/icons-material/AddShoppingCart';
+import VisibilityIcon from '@mui/icons-material/Visibility';
 import { useNavigate } from 'react-router-dom';
 import type { Product } from '../types/product.types';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 
+const FERRARI_RED = '#d32f2f';
+
 interface Props {
   product: Product;
-  // פונקציה אופציונלית לסינון מהיר (חדש!)
   onQuickFilter?: (type: string, value: string) => void;
 }
 
@@ -20,19 +21,16 @@ export const ProductCard: React.FC<Props> = ({ product, onQuickFilter }) => {
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation(); 
-
     if (!user) {
         alert('כדי להוסיף רכבים לעגלה, יש להתחבר למערכת 🏎️');
         navigate('/login');
         return;
     }
-
-    addToCart(product.id, 1);
+    addToCart(product);
   };
 
-  // פונקציה לטיפול בלחיצה על תגית (חדש!)
   const handleChipClick = (e: React.MouseEvent, type: string, value: string) => {
-      e.stopPropagation(); // שלא יכנס לדף המוצר
+      e.stopPropagation();
       if (onQuickFilter) {
           onQuickFilter(type, value);
       }
@@ -40,115 +38,120 @@ export const ProductCard: React.FC<Props> = ({ product, onQuickFilter }) => {
 
   return (
     <Card 
+      onClick={() => navigate(`/product/${product.id}`)}
       sx={{ 
-        maxWidth: 345, 
         height: '100%', 
         display: 'flex', 
-        flexDirection: 'column', 
-        boxShadow: 3, 
-        cursor: 'pointer', 
-        transition: '0.2s', 
-        '&:hover': { transform: 'scale(1.02)' } 
+        flexDirection: 'column',
+        position: 'relative',
+        borderRadius: 5, // פינות מעוגלות מאוד
+        border: '1px solid #f0f0f0', 
+        bgcolor: 'white',
+        transition: 'all 0.3s ease-in-out',
+        cursor: 'pointer',
+        overflow: 'visible',
+        '&:hover': {
+            transform: 'translateY(-8px)', // אפקט ריחוף
+            boxShadow: '0 12px 30px rgba(211, 47, 47, 0.15)', // צללית אדמדמה בריחוף
+            borderColor: 'transparent'
+        }
       }}
-      onClick={() => navigate(`/product/${product.id}`)}
+      elevation={0}
     >
-      <Box sx={{ position: 'relative' }}>
-          <CardMedia
-            component="img"
-            height="200"
-            image={product.imageUrl}
-            alt={product.name}
-            sx={{ objectFit: 'cover' }}
-          />
-          {/* במידה והמלאי אזל, אפשר להוסיף חיווי כאן */}
+      {/* תגיות סטטוס צפות */}
+      <Box sx={{ position: 'absolute', top: 12, left: 12, zIndex: 2 }}>
           {product.stock === 0 && (
-             <Chip label="אזל המלאי" color="error" size="small" sx={{ position: 'absolute', top: 10, right: 10 }} />
+              <Chip label="אזל המלאי" sx={{ bgcolor: '#ffebee', color: '#c62828', fontWeight: 'bold' }} size="small" />
+          )}
+          {product.stock > 0 && product.stock < 5 && (
+              <Chip label="נחטף!" sx={{ bgcolor: '#fff3e0', color: '#ef6c00', fontWeight: 'bold' }} size="small" />
           )}
       </Box>
-      
-      <CardContent sx={{ flexGrow: 1 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-            <Typography gutterBottom variant="h6" component="div" sx={{ fontWeight: 'bold' }}>
-            {product.carMake || product.brand} {product.name}
-            </Typography>
-            <Typography variant="h6" color="primary">
-            ₪{product.price}
-            </Typography>
-        </Box>
 
-        {/* --- אזור התגיות הלחיצות --- */}
-        <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mb: 2 }}>
-            {/* קטגוריה */}
+      {/* אזור התמונה */}
+      <Box sx={{ p: 2, pb: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', height: 220, overflow: 'hidden', borderRadius: '20px 20px 0 0' }}>
+          <CardMedia
+            component="img"
+            image={product.imageUrl}
+            alt={product.name}
+            sx={{ 
+                height: '100%', width: '100%', objectFit: 'contain', 
+                transition: 'transform 0.5s',
+                '&:hover': { transform: 'scale(1.08)' } 
+            }}
+          />
+      </Box>
+      
+      <CardContent sx={{ flexGrow: 1, pt: 1 }}>
+        <Stack direction="row" spacing={1} mb={2} flexWrap="wrap" useFlexGap sx={{ rowGap: 1 }}>
+            {/* 1. קטגוריה */}
             <Chip 
-                label={product.category} 
-                size="small" 
-                color="primary" 
-                variant="outlined"
+                label={product.category} size="small" 
                 onClick={(e) => handleChipClick(e, 'category', product.category)}
-                sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'rgba(25, 118, 210, 0.04)' } }}
+                sx={{ bgcolor: '#f5f5f5', fontWeight: 'bold', fontSize: '0.7rem', '&:hover': { bgcolor: '#e0e0e0' } }}
             />
-            
-            {/* קנה מידה */}
-            {product.scale && (
+            {/* 2. יצרן רכב */}
+            {product.carMake && (
                 <Chip 
-                    label={product.scale} 
-                    size="small" 
-                    variant="outlined" 
-                    onClick={(e) => handleChipClick(e, 'scale', product.scale)}
-                    sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.04)' } }}
+                    label={product.carMake} size="small" 
+                    onClick={(e) => handleChipClick(e, 'carMake', product.carMake)}
+                    sx={{ bgcolor: '#ffebee', color: FERRARI_RED, fontWeight: 'bold', fontSize: '0.7rem', '&:hover': { bgcolor: '#ffcdd2' } }}
                 />
             )}
-
-            {/* מותג (אם יש) */}
+            {/* 3. מותג צעצוע */}
             {product.brand && (
                 <Chip 
-                    label={product.brand} 
-                    size="small" 
-                    color="secondary" 
-                    variant="outlined" 
+                    label={product.brand} size="small" 
                     onClick={(e) => handleChipClick(e, 'brand', product.brand)}
-                    sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'rgba(156, 39, 176, 0.04)' } }}
+                    sx={{ bgcolor: '#f3e5f5', color: '#7b1fa2', fontSize: '0.7rem', fontWeight: 'bold', '&:hover': { bgcolor: '#e1bee7' } }}
+                />
+            )}
+            {/* 4. קנה מידה */}
+            {product.scale && (
+                <Chip 
+                    label={product.scale} size="small" variant="outlined"
+                    onClick={(e) => handleChipClick(e, 'scale', product.scale)}
+                    sx={{ borderColor: '#eee', color: 'text.secondary', fontSize: '0.7rem' }}
                 />
             )}
         </Stack>
-        {/* --------------------------- */}
 
-        <Typography variant="body2" color="text.secondary">
-          {product.description ? product.description.substring(0, 80) : 'אין תיאור זמין'}...
+        <Typography gutterBottom variant="h6" component="div" sx={{ fontWeight: '800', lineHeight: 1.2, fontSize: '1.1rem' }}>
+            {product.name}
+        </Typography>
+
+        <Typography variant="h5" sx={{ color: FERRARI_RED, fontWeight: '900', mt: 'auto' }}>
+            ₪{product.price}
         </Typography>
       </CardContent>
 
-      <CardActions sx={{ flexDirection: 'column', gap: 1.5, px: 2, pb: 2 }}>
-        
-        {/* כפתור פרטים */}
+      {/* אזור הכפתורים */}
+      <Box sx={{ p: 2, pt: 0, display: 'flex', gap: 1.5 }}>
         <Button 
-            variant="outlined" 
-            fullWidth
-            size="medium"
-            startIcon={<InfoOutlinedIcon />}
-            onClick={(e) => {
-                e.stopPropagation();
-                navigate(`/product/${product.id}`);
-            }}
-            sx={{ py: 1, borderWidth: 1.5 }}
-        >
-          פרטים נוספים
-        </Button>
-
-        {/* כפתור הוספה לעגלה */}
-        <Button 
-            variant="contained" 
-            fullWidth
-            size="medium"
-            startIcon={<ShoppingCartIcon />}
+            variant="contained" fullWidth size="large"
             onClick={handleAddToCart}
-            disabled={product.stock === 0} // משביתים אם אין מלאי
-            sx={{ py: 1 }}
+            disabled={product.stock === 0}
+            startIcon={<AddShoppingCartIcon />}
+            sx={{ 
+                borderRadius: 50, fontWeight: 'bold', textTransform: 'none', boxShadow: 'none', height: 48, fontSize: '1rem',
+                bgcolor: FERRARI_RED, 
+                '&:hover': { bgcolor: '#b71c1c', boxShadow: '0 8px 20px rgba(211, 47, 47, 0.3)', transform: 'translateY(-2px)' }
+            }}
         >
-          {product.stock === 0 ? 'אזל המלאי' : 'הוסף לעגלה'}
+            {product.stock === 0 ? 'אזל' : 'הוסף לסל'}
         </Button>
 
-      </CardActions>
+        <Button
+            variant="outlined"
+            onClick={(e) => { e.stopPropagation(); navigate(`/product/${product.id}`); }}
+            sx={{ 
+                minWidth: 50, width: 50, height: 48, borderRadius: 50, borderColor: '#e0e0e0', color: 'text.secondary',
+                '&:hover': { borderColor: FERRARI_RED, color: FERRARI_RED, bgcolor: 'transparent' }
+            }}
+        >
+            <VisibilityIcon />
+        </Button>
+      </Box>
     </Card>
   );
 };

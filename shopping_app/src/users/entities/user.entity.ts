@@ -40,6 +40,7 @@ export class User {
     type: 'enum',
     enum: UserRole,
     default: UserRole.USER,
+    nullable: true
   })
   role: UserRole;
 

@@ -6,6 +6,7 @@ export interface User {
   lastName: string;
   picture?: string;
   role: 'admin' | 'user'; // האדמין יוכל לשנות מלאי
+  provider?: string;
 }
 
 export interface AuthResponse {

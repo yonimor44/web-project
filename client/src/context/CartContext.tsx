@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import type { Cart } from '../types/cart.types';
+import type { Product } from '../types/product.types'; // <--- וודא שיש לך את הייבוא הזה
 import { cartService } from '../services/cart.service';
 import { Snackbar, Alert } from '@mui/material';
 import { useAuth } from './AuthContext';
@@ -8,12 +9,22 @@ import type { ReactNode } from 'react';
 interface CartContextType {
   cart: Cart | null;
   loading: boolean;
-  addToCart: (productId: number, quantity?: number) => Promise<void>;
+  // שינינו את החתימה: מקבלים מוצר שלם במקום רק ID
+  addToCart: (product: Product, quantity?: number) => Promise<void>;
   removeFromCart: (productId: number) => Promise<void>;
   updateQuantity: (productId: number, quantity: number) => Promise<void>;
-  clearCart: () => void; // <--- חדש: פונקציה לריקון העגלה אחרי קנייה
+  clearCart: () => void;
   totalItems: number;
-  total: number; // <--- חדש: הסכום הכולל לתשלום
+  total: number;
+  
+  // ניהול ה-Drawer (עגלה צדדית)
+  isCartOpen: boolean;
+  setIsCartOpen: (isOpen: boolean) => void;
+
+  // --- חדש: ניהול המודל הקופץ (Add to Cart Modal) ---
+  isSuccessModalOpen: boolean;
+  setIsSuccessModalOpen: (isOpen: boolean) => void;
+  lastAddedItem: Product | null;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -23,16 +34,20 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [cart, setCart] = useState<Cart | null>(null);
   const [loading, setLoading] = useState(false);
   
+  // State לפתיחת ה-Drawer (עגלה צדדית)
+  const [isCartOpen, setIsCartOpen] = useState(false);
+
+  // --- State חדש למודל ההוספה ---
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  const [lastAddedItem, setLastAddedItem] = useState<Product | null>(null);
+
+  // Snackbar State
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error'>('success');
 
-  // פונקציה שטוענת את העגלה מהשרת
   const fetchCart = async (showLoading = true) => {
-    if (!user) {
-        setCart(null);
-        return;
-    }
+    if (!user) { setCart(null); return; }
     if (showLoading) setLoading(true);
     try {
       const data = await cartService.getCart();
@@ -45,12 +60,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // טעינה ראשונית כשהמשתמש מתחבר
-  useEffect(() => {
-    fetchCart(true);
-  }, [user]);
+  useEffect(() => { fetchCart(true); }, [user]);
 
-  const addToCart = async (productId: number, quantity: number = 1) => {
+  // --- הפונקציה המעודכנת ---
+  const addToCart = async (product: Product, quantity: number = 1) => {
     if (!user) {
         setSnackbarMessage('יש להתחבר כדי להוסיף לעגלה');
         setSnackbarSeverity('error');
@@ -59,12 +72,16 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     }
 
     try {
-      await cartService.addToCart(productId, quantity);
-      await fetchCart(false); // מרעננים את העגלה
+      // שולחים לשרת את ה-ID
+      await cartService.addToCart(product.id, quantity);
+      await fetchCart(false);
       
-      setSnackbarMessage('המוצר נוסף לעגלה בהצלחה! 🛒');
-      setSnackbarSeverity('success');
-      setSnackbarOpen(true);
+      // במקום לפתוח סנאקבר או את ה-Drawer, אנחנו מעדכנים את המודל החדש
+      setLastAddedItem(product); // שומרים את המוצר האחרון שנוסף
+      setIsSuccessModalOpen(true); // פותחים את החלון הקופץ
+      
+      // הערה: מחקנו את setIsCartOpen(true) כדי שהעגלה הצדדית לא תיפתח
+      
     } catch (error: any) {
       console.error('Failed to add to cart:', error);
       const errorMsg = error.response?.data?.message || 'שגיאה בהוספה לעגלה';
@@ -82,9 +99,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         setSnackbarMessage('המוצר הוסר מהעגלה');
         setSnackbarSeverity('success');
         setSnackbarOpen(true);
-    } catch (error) {
-        console.error(error);
-    }
+    } catch (error) { console.error(error); }
   };
 
   const updateQuantity = async (productId: number, quantity: number) => {
@@ -99,31 +114,19 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // --- פונקציה חדשה: ריקון עגלה מקומית ---
   const clearCart = () => {
       setCart(null);
-      // אופציונלי: אפשר גם לקרוא ל-fetchCart כדי לוודא סנכרון עם השרת
-      // fetchCart(false); 
   };
 
-  // חישוב סך הפריטים
   const totalItems = (cart?.items || []).reduce((sum, item) => sum + item.quantity, 0);
-
-  // --- חישוב חדש: סכום כולל לתשלום ---
-  const total = (cart?.items || []).reduce((sum, item) => {
-      return sum + (Number(item.product.price) * item.quantity);
-  }, 0);
+  const total = (cart?.items || []).reduce((sum, item) => sum + (Number(item.product.price) * item.quantity), 0);
 
   return (
     <CartContext.Provider value={{ 
-        cart, 
-        loading, 
-        addToCart, 
-        removeFromCart, 
-        updateQuantity, 
-        clearCart, // חשיפת הפונקציה
-        totalItems,
-        total // חשיפת המחיר הכולל
+        cart, loading, addToCart, removeFromCart, updateQuantity, clearCart, 
+        totalItems, total,
+        isCartOpen, setIsCartOpen,
+        isSuccessModalOpen, setIsSuccessModalOpen, lastAddedItem // חשיפה החוצה
     }}>
       {children}
       
@@ -143,8 +146,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
 export const useCart = () => {
   const context = useContext(CartContext);
-  if (!context) {
-    throw new Error('useCart must be used within a CartProvider');
-  }
+  if (!context) throw new Error('useCart must be used within a CartProvider');
   return context;
 };

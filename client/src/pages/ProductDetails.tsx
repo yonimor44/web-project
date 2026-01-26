@@ -1,13 +1,17 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Typography, Button, Box, Chip, Divider, CircularProgress, useTheme, useMediaQuery } from '@mui/material';
+import { Typography, Button, Box, Chip, Divider, CircularProgress, useTheme, useMediaQuery, Stack, IconButton, Paper } from '@mui/material';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import FlashOnIcon from '@mui/icons-material/FlashOn';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward'; // חץ שמתאים יותר לחזרה בעברית
+import LocalShippingIcon from '@mui/icons-material/LocalShipping';
+import VerifiedIcon from '@mui/icons-material/Verified';
 import { productsService } from '../services/products.service';
 import type { Product } from '../types/product.types';
 import { useCart } from '../context/CartContext'; 
 import { useAuth } from '../context/AuthContext';
+
+const FERRARI_RED = '#d32f2f'; 
 
 export const ProductDetails = () => {
   const { id } = useParams();
@@ -19,6 +23,7 @@ export const ProductDetails = () => {
   const { user } = useAuth();
   
   const theme = useTheme();
+  // זיהוי מובייל משופר
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   useEffect(() => {
@@ -45,15 +50,15 @@ export const ProductDetails = () => {
     }
 
     if (product) {
-        await addToCart(product.id, 1);
+        await addToCart(product);
         if (redirect) {
-            navigate('/cart');
+            navigate('/checkout');
         }
     }
   };
 
-  if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}><CircularProgress size={80} /></Box>;
-  if (!product) return <Typography variant="h4" align="center" mt={10}>הרכב לא נמצא 😔</Typography>;
+  if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}><CircularProgress sx={{ color: FERRARI_RED }} /></Box>;
+  if (!product) return <Typography variant="h5" align="center" mt={10}>הרכב לא נמצא 😔</Typography>;
 
   const stockAmount = Number(product.stock || 0);
   const isInStock = stockAmount > 0;
@@ -61,100 +66,176 @@ export const ProductDetails = () => {
   return (
     <Box sx={{ 
       width: '100%', 
-      minHeight: '90vh', 
+      // גובה דינמי: במובייל לפי תוכן, במחשב מסך מלא פחות הנאבבר
+      minHeight: { xs: 'auto', md: 'calc(100vh - 64px)' }, 
       display: 'flex', 
       flexDirection: isMobile ? 'column' : 'row', 
-      bgcolor: '#fff',
-      position: 'relative' // --- חשוב: מאפשר לכפתור להיות ממוקם ביחס לכל העמוד ---
+      bgcolor: '#f5f5f5', // רקע כללי אפור בהיר מאוד
+      overflowX: 'hidden',
+      position: 'relative'
     }}>
       
-      {/* --- הכפתור עבר לכאן (עכשיו הוא ילד ישיר של הקונטיינר הראשי) --- */}
-      <Button 
-          startIcon={<ArrowBackIcon />} 
+      {/* --- כפתור חזרה (מתוקן: קטן יותר, צד ימין) --- */}
+      <IconButton 
           onClick={() => navigate('/')} 
+          size="small"
           sx={{ 
               position: 'absolute', 
               top: 20, 
-              right: 20, // נצמד לפינה הימנית של המסך כולו
-              zIndex: 100, // שיהיה מעל הכל
-              backgroundColor: 'rgba(255,255,255,0.8)', // רקע חצי שקוף למקרה שהוא עולה על משהו
-              '&:hover': { backgroundColor: 'rgba(255,255,255,1)' },
-              boxShadow: 1
+              right: 20, // בצד ימין (התחלה בעברית)
+              zIndex: 100, 
+              bgcolor: 'white',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              '&:hover': { bgcolor: '#f0f0f0' },
+              width: 40, // גודל קומפקטי יותר
+              height: 40
           }}
       >
-          חזרה לקטלוג
-      </Button>
-      {/* ------------------------------------------------------------------ */}
+        <ArrowForwardIcon sx={{ color: '#333', fontSize: 20 }} />
+      </IconButton>
 
       {/* --- צד ימין: תמונה --- */}
       <Box sx={{ 
         flex: 1, 
-        bgcolor: '#f8f9fa', 
+        // במובייל הגובה מוגבל, במחשב תופס את כל הגובה
+        height: { xs: '40vh', md: 'auto' },
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
-        p: 4
+        position: 'relative',
+        bgcolor: '#eaeaea' // רקע ניטרלי לתמונה
       }}>
+        {/* טקסט רקע רק במסכים גדולים */}
+        {!isMobile && (
+            <Typography sx={{ 
+                position: 'absolute', 
+                top: '50%', left: '50%', transform: 'translate(-50%, -50%)', 
+                fontSize: '10vw', fontWeight: '900', color: 'rgba(0,0,0,0.04)', 
+                whiteSpace: 'nowrap', zIndex: 0,
+                pointerEvents: 'none'
+            }}>
+                {product.carMake}
+            </Typography>
+        )}
+
         <Box 
           component="img"
           src={product.imageUrl}
           alt={product.name}
           sx={{
-            maxWidth: '100%',
-            maxHeight: '70vh',
+            width: '85%',
+            maxWidth: '600px',
+            maxHeight: { xs: '80%', md: '60%' }, // שלא תהיה ענקית
             objectFit: 'contain', 
-            filter: 'drop-shadow(0px 10px 20px rgba(0,0,0,0.15))'
+            filter: 'drop-shadow(0px 15px 30px rgba(0,0,0,0.2))',
+            zIndex: 1,
+            transition: 'transform 0.3s',
+            '&:hover': { transform: 'scale(1.05)' }
           }}
         />
       </Box>
 
-      {/* --- צד שמאל: פרטים --- */}
-      <Box sx={{ 
+      {/* --- צד שמאל: פרטים (Card Sheet במובייל) --- */}
+      <Paper elevation={0} sx={{ 
         flex: 1, 
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'center', 
-        p: { xs: 4, md: 8, lg: 10 } 
+        // ריפוד מותאם: פחות במובייל, יותר במחשב
+        p: { xs: 3, md: 6, lg: 8 }, 
+        bgcolor: 'white',
+        // במובייל: פינות עליונות מעוגלות ועולה קצת על התמונה. במחשב: פינות שמאליות.
+        borderRadius: { xs: '30px 30px 0 0', md: '30px 0 0 30px' },
+        marginTop: { xs: '-30px', md: '0' }, // אפקט חפיפה במובייל
+        zIndex: 2,
+        boxShadow: { xs: '0 -10px 30px rgba(0,0,0,0.05)', md: '-10px 0 30px rgba(0,0,0,0.05)' }
       }}>
         
-        <Typography variant="overline" color="text.secondary" sx={{ fontSize: '1.1rem', letterSpacing: 3, mb: 1 }}>
-          {product.brand} COLLECTION
-        </Typography>
+        {/* כותרת מותג עדינה */}
+        <Stack direction="row" alignItems="center" spacing={1} mb={1}>
+            <VerifiedIcon sx={{ color: FERRARI_RED, fontSize: 18 }} />
+            <Typography variant="caption" sx={{ letterSpacing: 1.5, fontWeight: 'bold', color: 'text.secondary' }}>
+                {product.brand} COLLECTION
+            </Typography>
+        </Stack>
         
-        <Typography variant="h2" component="h1" sx={{ fontWeight: 900, mb: 2, lineHeight: 1 }}>
-          {product.carMake} {product.name}
+        {/* שם הרכב (הקטנו פונט) */}
+        <Typography variant="h4" component="h1" sx={{ 
+            fontWeight: 800, 
+            mb: 1, 
+            lineHeight: 1.1, 
+            textTransform: 'uppercase',
+            fontSize: { xs: '1.8rem', md: '2.5rem' } // רספונסיבי
+        }}>
+          {product.carMake} <Box component="span" sx={{ color: FERRARI_RED }}>{product.name}</Box>
         </Typography>
 
-        <Typography variant="h3" color="primary" sx={{ mb: 4, fontWeight: 'bold' }}>
-          ₪{product.price}
-        </Typography>
-
-        <Box sx={{ display: 'flex', gap: 1, mb: 4, flexWrap: 'wrap' }}>
-          {product.scale && <Chip label={`Scale: ${product.scale}`} variant="outlined" />}
-          {product.color && <Chip label={`Color: ${product.color}`} variant="outlined" />}
-          <Chip label={product.category} color="secondary" variant="outlined" />
-          {isInStock ? 
-            <Chip label="במלאי" color="success" variant="filled" /> : 
-            <Chip label="אזל המלאי" color="error" variant="filled" />
-          }
+        {/* מחיר וסטטוס (הקטנו פונט) */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+            <Typography variant="h4" sx={{ color: FERRARI_RED, fontWeight: '800', fontSize: { xs: '1.8rem', md: '2.2rem' } }}>
+                ₪{product.price}
+            </Typography>
+            
+            <Chip 
+                label={isInStock ? "במלאי" : "אזל"} 
+                size="small"
+                sx={{ 
+                    bgcolor: isInStock ? '#e8f5e9' : '#ffebee', 
+                    color: isInStock ? '#2e7d32' : '#c62828', 
+                    fontWeight: 'bold' 
+                }} 
+            />
         </Box>
 
-        <Typography variant="body1" paragraph sx={{ mb: 5, lineHeight: 1.8, fontSize: '1.1rem', color: 'text.secondary', maxWidth: '600px' }}>
-          {product.description || "אין תיאור זמין עבור דגם זה."}
+        {/* תגיות מידע (מסודרות וקטנות) */}
+        <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mb: 3 }}>
+            <Chip label={product.category} size="small" variant="outlined" sx={{ borderRadius: 2 }} />
+            <Chip label={product.carMake} size="small" variant="outlined" sx={{ borderRadius: 2 }} />
+            {product.scale && <Chip label={product.scale} size="small" variant="outlined" sx={{ borderRadius: 2 }} />}
+            {product.color && (
+                <Chip 
+                    label={product.color} 
+                    size="small"
+                    variant="outlined" 
+                    avatar={<Box sx={{ width: 14, height: 14, borderRadius: '50%', bgcolor: product.color.toLowerCase(), border: '1px solid #ddd', ml: 1 }} />}
+                    sx={{ borderRadius: 2 }} 
+                />
+            )}
+        </Stack>
+
+        <Typography variant="body2" paragraph sx={{ 
+            mb: 4, 
+            lineHeight: 1.6, 
+            fontSize: '1rem', 
+            color: 'text.secondary', 
+            maxWidth: '550px' 
+        }}>
+          {product.description || "דגם אספנות איכותי ומדויק לפרטים, הכולל גימור ברמה גבוהה. מתנה מושלמת לכל חובב רכב."}
         </Typography>
 
-        <Divider sx={{ mb: 5 }} />
+        <Divider sx={{ mb: 4 }} />
 
-        <Box sx={{ display: 'flex', gap: 2, maxWidth: '500px' }}>
+        {/* כפתורי פעולה */}
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
           <Button 
             variant="contained" 
             size="large"
             startIcon={<ShoppingCartIcon />}
             disabled={!isInStock}
             onClick={() => handleAddToCart(false)}
-            sx={{ flex: 1, py: 1.5, fontSize: '1rem', boxShadow: 'none' }}
+            sx={{ 
+                flex: 1, 
+                py: 1.5, 
+                fontSize: '1rem', 
+                fontWeight: 'bold',
+                borderRadius: 50, 
+                bgcolor: FERRARI_RED, 
+                boxShadow: '0 8px 20px rgba(211, 47, 47, 0.3)',
+                '&:hover': { bgcolor: '#b71c1c', boxShadow: '0 12px 25px rgba(211, 47, 47, 0.4)' },
+                textTransform: 'none'
+            }}
           >
-            {isInStock ? 'הוסף לעגלה' : 'חסר במלאי'}
+            הוסף לעגלה
           </Button>
 
           <Button 
@@ -163,18 +244,41 @@ export const ProductDetails = () => {
             startIcon={<FlashOnIcon />}
             disabled={!isInStock}
             onClick={() => handleAddToCart(true)}
-            sx={{ flex: 1, py: 1.5, fontSize: '1rem', borderWidth: 1 }}
+            sx={{ 
+                flex: 1, 
+                py: 1.5, 
+                fontSize: '1rem', 
+                fontWeight: 'bold',
+                borderRadius: 50, 
+                borderColor: '#e0e0e0',
+                color: 'text.primary',
+                borderWidth: 1.5,
+                '&:hover': { borderColor: FERRARI_RED, color: FERRARI_RED, bgcolor: 'white', borderWidth: 1.5 },
+                textTransform: 'none'
+            }}
           >
             קנה עכשיו
           </Button>
-        </Box>
+        </Stack>
         
+        {/* אייקונים למטה - מוקטנים */}
+        <Box sx={{ mt: 3, display: 'flex', gap: 3, color: 'text.secondary', opacity: 0.8 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <LocalShippingIcon sx={{ fontSize: 18 }} />
+                <Typography variant="caption" fontWeight="bold">משלוח מהיר</Typography>
+            </Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <VerifiedIcon sx={{ fontSize: 18 }} />
+                <Typography variant="caption" fontWeight="bold">מקורי 100%</Typography>
+            </Box>
+        </Box>
+
         {isInStock && stockAmount < 5 && (
-            <Typography variant="caption" color="error" sx={{ mt: 2, fontWeight: 'bold' }}>
-               רק {stockAmount} יחידות נותרו!
+            <Typography variant="caption" color="error" sx={{ mt: 1, fontWeight: 'bold', display: 'block' }}>
+               🔥 רק {stockAmount} יחידות נותרו!
             </Typography>
         )}
-      </Box>
+      </Paper>
     </Box>
   );
 };

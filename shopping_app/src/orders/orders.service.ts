@@ -1,11 +1,12 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm'; // הוספתי In
 import { Order, OrderStatus } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
 import { CartService } from 'src/cart/cart.service';
 import { Product } from 'src/products/entities/product.entity';
-import { CreateOrderDto } from './dto/create-order.dto'; // <--- 1. ייבוא ה-DTO
+import { CreateOrderDto } from './dto/create-order.dto';
+import { CartItem } from 'src/cart/entities/cart-item.entity'; // וודא שיש ייבוא
 
 @Injectable()
 export class OrdersService {
@@ -16,42 +17,50 @@ export class OrdersService {
     private orderItemsRepository: Repository<OrderItem>,
     @InjectRepository(Product)
     private productsRepository: Repository<Product>,
+    @InjectRepository(CartItem) // הוספת רפוזיטורי כדי למחוק פריטים ספציפיים
+    private cartItemRepository: Repository<CartItem>,
     private cartService: CartService,
   ) {}
 
-  // 2. עדכון החתימה: מקבלים גם userId וגם את פרטי המשלוח
-  async create(userId: number, createOrderDto: CreateOrderDto) {
-    // 1. שליפת העגלה של המשתמש
+  // עדכנו את החתימה: selectedItemIds הוא אופציונלי
+  async create(userId: number, createOrderDto: CreateOrderDto, selectedItemIds?: number[]) {
+    // 1. שליפת העגלה
     const cart = await this.cartService.findCartByUserId(userId);
 
     if (!cart.items || cart.items.length === 0) {
       throw new BadRequestException('Cart is empty');
     }
 
-    // 2. יצירת ההזמנה הראשית
+    // 2. סינון פריטים: אם נשלחו IDs, לוקחים רק אותם. אחרת את כולם.
+    // שים לב: אנחנו מצפים ל-IDs של CartItems, לא של Products
+    const itemsToOrder = (selectedItemIds && selectedItemIds.length > 0)
+        ? cart.items.filter(item => selectedItemIds.includes(item.id))
+        : cart.items;
+
+    if (itemsToOrder.length === 0) {
+        throw new BadRequestException('No items selected for checkout');
+    }
+
+    // 3. יצירת ההזמנה הראשית
     const order = this.ordersRepository.create({
       user: { id: userId },
       status: OrderStatus.PENDING,
       totalAmount: 0, 
-      // --- הוספת פרטי המשלוח מהטופס ---
       shippingAddress: createOrderDto.shippingAddress,
       city: createOrderDto.city,
       phone: createOrderDto.phone,
-      // -------------------------------
     });
     
-    // שומרים כדי לקבל ID להזמנה
     const savedOrder = await this.ordersRepository.save(order);
 
-    // 3. המרת פריטי עגלה -> לפריטי הזמנה (Snapshot)
+    // 4. המרת פריטי עגלה -> לפריטי הזמנה
     let totalAmount = 0;
     
-    for (const cartItem of cart.items) {
-      const priceAtPurchase = cartItem.product.price; // המחיר ברגע הקנייה
-    
+    for (const cartItem of itemsToOrder) {
+      const priceAtPurchase = cartItem.product.price;
+
       // בדיקת מלאי
       if(cartItem.product.stock < cartItem.quantity){
-        // אופציונלי: אפשר למחוק את ההזמנה שיצרנו אם נכשלים פה, או להשתמש ב-Transaction
         throw new BadRequestException(`Product ${cartItem.product.name} is out of stock`);
       }
 
@@ -59,43 +68,48 @@ export class OrdersService {
         order: savedOrder,
         product: cartItem.product,
         quantity: cartItem.quantity,
-        price: priceAtPurchase, // שומרים את המחיר ההיסטורי
+        price: priceAtPurchase,
       });
 
       await this.orderItemsRepository.save(orderItem);
 
-      // עדכון מלאי המוצר
+      // עדכון מלאי
       cartItem.product.stock -= cartItem.quantity;
       await this.productsRepository.save(cartItem.product);
 
-      // חישוב הסכום הכולל
       totalAmount += priceAtPurchase * cartItem.quantity;
     }
 
-    // 4. עדכון הסכום הסופי בהזמנה
+    // 5. עדכון הסכום הסופי
     savedOrder.totalAmount = totalAmount;
     await this.ordersRepository.save(savedOrder);
 
-    // 5. ריקון העגלה
-    await this.cartService.clearCart(cart.id);
+    // 6. מחיקת הפריטים שהוזמנו בלבד!
+    const itemsToRemove = itemsToOrder.map(item => item.id);
+    if (itemsToRemove.length > 0) {
+        await this.cartItemRepository.delete({ id: In(itemsToRemove) });
+    }
 
     return savedOrder;
   }
   
-  // פונקציה למנהלים: לראות את כל ההזמנות
+  // ... שאר הפונקציות (findAll, findMyOrders, updateStatus) ללא שינוי
   async findAll() {
     return this.ordersRepository.find({ 
         relations: ['user', 'items', 'items.product'],
-        order: { orderDate: 'DESC' } // הכי חדש למעלה
+        order: { orderDate: 'DESC' }
     });
   }
 
-  // פונקציה למשתמש: לראות את ההזמנות שלי
   async findMyOrders(userId: number) {
      return this.ordersRepository.find({ 
        where: { user: { id: userId } },
        relations: ['items', 'items.product'],
-       order: { orderDate: 'DESC' } // הכי חדש למעלה
+       order: { orderDate: 'DESC' } 
      });
+  }
+
+  async updateStatus(id: number, status: string) {
+    return this.ordersRepository.update(id, { status: status as any });
   }
 }

@@ -2,11 +2,13 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, On
 import { User } from '../../users/entities/user.entity';
 import { OrderItem } from './order-item.entity';
 
+// הגדרת הסטטוסים האפשריים
 export enum OrderStatus {
-  PENDING = 'pending',
-  SHIPPED = 'shipped',
-  DELIVERED = 'delivered',
-  CANCELLED = 'cancelled',
+  PENDING = 'pending',       // התקבל
+  PROCESSING = 'Processing', // בטיפול
+  SHIPPED = 'Shipped',       // נשלח
+  DELIVERED = 'Delivered',   // הגיע ליעד
+  CANCELLED = 'Cancelled',   // בוטל
 }
 
 @Entity()
@@ -21,6 +23,7 @@ export class Order {
     type: 'enum',
     enum: OrderStatus,
     default: OrderStatus.PENDING,
+    nullable: true
   })
   status: OrderStatus;
 

@@ -8,8 +8,9 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   loading: boolean;
-  login: (email: string, pass: string) => Promise<void>;
-  loginWithToken: (token: string) => void; 
+  // עדכנו את הטיפוסים כדי שיחזירו User או null
+  login: (email: string, pass: string) => Promise<User | null>;
+  loginWithToken: (token: string) => User | null; 
   register: (first: string, last: string, email: string, pass: string) => Promise<void>;
   logout: () => void;
 }
@@ -20,8 +21,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // --- הפונקציה המרכזית שמפענחת טוקן ומעדכנת את המשתמש ---
-  const handleTokenProcessing = (token: string) => {
+  // --- הפונקציה המרכזית שמפענחת טוקן, מעדכנת ומחזירה את המשתמש ---
+  const handleTokenProcessing = (token: string): User | null => {
     localStorage.setItem('token', token);
     api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     
@@ -33,23 +34,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (decoded.exp < currentTime) {
             console.log('Token expired');
             logout();
-            return;
+            return null;
         }
 
-        setUser({
+        const newUser: User = {
             id: decoded.sub,
             email: decoded.email,
             firstName: decoded.firstName || 'User',
             lastName: decoded.lastName,
-            // --- התיקון כאן: ---
-            // במקום decoded.roles?.[0], אנחנו קוראים את מה שהשרת שלח: decoded.role
             role: decoded.role || 'user', 
-            // -------------------
             picture: decoded.picture,
-        });
+            provider: decoded.provider || 'local'
+        };
+
+        setUser(newUser);
+        return newUser; // <--- חשוב מאוד: מחזירים את המשתמש!
+
     } catch (e) {
         console.error('Failed to decode token', e);
         logout();
+        return null;
     }
   };
 
@@ -65,12 +69,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // --- 1. לוגין רגיל (טופס) ---
   const login = async (email: string, pass: string) => {
     const data = await authService.login(email, pass);
-    handleTokenProcessing(data.access_token);
+    // מחזירים את התוצאה של העיבוד (את המשתמש)
+    return handleTokenProcessing(data.access_token);
   };
 
   // --- 2. לוגין ישיר עם טוקן (גוגל) ---
   const loginWithToken = (token: string) => {
-    handleTokenProcessing(token);
+    // מחזירים את התוצאה של העיבוד
+    return handleTokenProcessing(token);
   };
 
   // --- 3. הרשמה ---

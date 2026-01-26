@@ -1,13 +1,22 @@
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import App from './App.tsx'
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
 import './index.css'
-import { AuthProvider } from './context/AuthContext.tsx' // <--- הוספה
+import App from './App.tsx'
+import { BrowserRouter } from 'react-router-dom'
+import { AuthProvider } from './context/AuthContext.tsx'
+import { CartProvider } from './context/CartContext.tsx'
+import { SnackbarProvider } from 'notistack'
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <AuthProvider> {/* העטיפה שנותנת לכולם גישה למידע על המשתמש */}
-      <App />
-    </AuthProvider>
-  </React.StrictMode>,
-)   
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <BrowserRouter> {/* <--- זה חייב להיות ראשון! */}
+      <SnackbarProvider maxSnack={3}>
+        <AuthProvider>
+          <CartProvider>
+            <App />
+          </CartProvider>
+        </AuthProvider>
+      </SnackbarProvider>
+    </BrowserRouter>
+  </StrictMode>,
+)
