@@ -7,9 +7,10 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import LoginIcon from '@mui/icons-material/Login';
+import AccountCircleIcon from '@mui/icons-material/AccountCircle'; 
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
-import { useNavigate, useLocation } from 'react-router-dom'; // הוספנו useLocation
+import { useNavigate, useLocation } from 'react-router-dom';
 
 import logoRed from './logo-red.png'; 
 
@@ -19,13 +20,11 @@ const TEXT_DARK = '#1a1a1a';
 export const Navbar = () => {
   const { user, logout } = useAuth(); 
   const navigate = useNavigate();
-  const location = useLocation(); // הוק לזיהוי העמוד הנוכחי
+  const location = useLocation(); 
   const { totalItems, setIsCartOpen } = useCart(); 
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
 
   const trigger = useScrollTrigger({ disableHysteresis: true, threshold: 10 });
-
-  // בדיקה האם אנחנו בדף התחברות או הרשמה
   const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
@@ -61,15 +60,21 @@ export const Navbar = () => {
     >
       <Toolbar sx={{ py: 1 }}> 
         
-        <Box 
+      {/* לוגו גדול שיוצא מהגבולות */}
+      <Box 
             component="img"
             src={logoRed} 
             alt="Yoni's Models"
             sx={{ 
-                height: { xs: 40, md: 50 }, 
+                height: { xs: 65, md: 100 }, 
+                position: 'absolute', 
+                top: '50%',
+                transform: 'translateY(-50%)', 
+                left: { xs: 16, md: 24 }, 
+                zIndex: 10,
                 cursor: 'pointer',
-                mr: { xs: 1, md: 2 },
-                display: 'block'
+                transition: 'transform 0.3s ease',
+                '&:hover': { transform: 'translateY(-50%) scale(1.05)' } 
             }}
             onClick={() => navigate('/')}
         />
@@ -77,8 +82,9 @@ export const Navbar = () => {
         <Box sx={{ flexGrow: 1 }} /> 
 
         {user ? (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, md: 3 } }}>
-            {/* ... שאר הקוד של משתמש מחובר נשאר אותו דבר ... */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, md: 2 } }}>
+            
+             {/* כפתורי ניווט (ניהול והזמנות) */}
              <Box sx={{ display: { xs: 'none', md: 'flex' }, gap: 1 }}>
                 {user.role === 'admin' && (
                     <Button 
@@ -90,6 +96,7 @@ export const Navbar = () => {
                         ניהול
                     </Button>
                 )}
+                
                 <Button 
                     color="inherit" 
                     onClick={() => navigate('/my-orders')}
@@ -100,6 +107,7 @@ export const Navbar = () => {
                 </Button>
             </Box>
 
+            {/* כפתור עגלה */}
             <IconButton 
                 onClick={() => setIsCartOpen(true)}
                 sx={{ color: TEXT_DARK, '&:hover': { color: FERRARI_RED, bgcolor: 'rgba(211, 47, 47, 0.04)' } }}
@@ -116,18 +124,43 @@ export const Navbar = () => {
               </Badge>
             </IconButton>
 
+            {/* --- הנה הכפתור פרופיל החדש, צמוד לתמונה --- */}
+            <Button 
+                color="inherit" 
+                onClick={() => navigate('/profile')}
+                startIcon={<AccountCircleIcon />}
+                sx={{ 
+                    display: { xs: 'none', md: 'inline-flex' }, // מוסתר במובייל
+                    borderRadius: 20, 
+                    px: 2,
+                    mr: -1 // מקרב אותו עוד קצת לתמונה
+                }}
+            >
+                פרופיל
+            </Button>
+
+            {/* אזור המשתמש (תמונה + שם) */}
             <Box 
                 sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer', p: 0.5, borderRadius: 50, '&:hover': { bgcolor: 'rgba(0,0,0,0.04)' } }} 
                 onClick={handleMenuOpen}
             >
-             <Avatar src={user.picture} alt={user.firstName} sx={{ bgcolor: FERRARI_RED, width: 35, height: 35 }}>
+             <Avatar 
+                key={user.picture} 
+                src={user.picture} 
+                alt={user.firstName} 
+                imgProps={{ referrerPolicy: 'no-referrer' }} 
+                sx={{ bgcolor: FERRARI_RED, width: 35, height: 35 }}
+             >
                 {!user.picture && <PersonOutlineIcon fontSize="small" />}
               </Avatar>
-              <Typography variant="subtitle2" sx={{ ml: 1, mr: 0.5, fontWeight: 'bold', display: { xs: 'none', sm: 'block' } }}>
+              
+              {/* הסתרתי את השם במחשב כי כבר יש כפתור פרופיל ליד, זה נראה נקי יותר */}
+              <Typography variant="subtitle2" sx={{ ml: 1, mr: 0.5, fontWeight: 'bold', display: { xs: 'none', lg: 'block' } }}>
                 {user.firstName}
               </Typography>
             </Box>
 
+            {/* התפריט הנפתח */}
             <Menu
               anchorEl={anchorEl}
               open={Boolean(anchorEl)}
@@ -147,15 +180,38 @@ export const Navbar = () => {
               transformOrigin={{ horizontal: 'right', vertical: 'top' }}
               anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
             >
-              <MenuItem onClick={() => handleNavigate('/')}><ListItemIcon><HomeIcon fontSize="small" /></ListItemIcon>דף הבית</MenuItem>
-              {user.role === 'admin' && (<MenuItem onClick={() => handleNavigate('/admin')}><ListItemIcon><AdminPanelSettingsIcon fontSize="small" sx={{ color: FERRARI_RED }} /></ListItemIcon>פאנל ניהול</MenuItem>)}
-              <MenuItem onClick={() => handleNavigate('/my-orders')}><ListItemIcon><ReceiptLongIcon fontSize="small" /></ListItemIcon>הזמנות שלי</MenuItem>
+              {/* משאירים גם פה למובייל */}
+              <MenuItem onClick={() => handleNavigate('/profile')}>
+                  <ListItemIcon><AccountCircleIcon fontSize="small" /></ListItemIcon>
+                  הפרופיל שלי
+              </MenuItem>
+              
+              <MenuItem onClick={() => handleNavigate('/')}>
+                  <ListItemIcon><HomeIcon fontSize="small" /></ListItemIcon>
+                  דף הבית
+              </MenuItem>
+
+              {user.role === 'admin' && (
+                  <MenuItem onClick={() => handleNavigate('/admin')}>
+                      <ListItemIcon><AdminPanelSettingsIcon fontSize="small" sx={{ color: FERRARI_RED }} /></ListItemIcon>
+                      פאנל ניהול
+                  </MenuItem>
+              )}
+
+              <MenuItem onClick={() => handleNavigate('/my-orders')}>
+                  <ListItemIcon><ReceiptLongIcon fontSize="small" /></ListItemIcon>
+                  הזמנות שלי
+              </MenuItem>
+              
               <Divider />
-              <MenuItem onClick={handleLogout} sx={{ color: FERRARI_RED, fontWeight: 'bold' }}><ListItemIcon><LogoutIcon fontSize="small" sx={{ color: FERRARI_RED }} /></ListItemIcon>התנתק</MenuItem>
+              
+              <MenuItem onClick={handleLogout} sx={{ color: FERRARI_RED, fontWeight: 'bold' }}>
+                  <ListItemIcon><LogoutIcon fontSize="small" sx={{ color: FERRARI_RED }} /></ListItemIcon>
+                  התנתק
+              </MenuItem>
             </Menu>
           </Box>
         ) : (
-          // --- כאן השינוי: מציגים את הכפתור רק אם אנחנו *לא* בדף אימות ---
           !isAuthPage && (
               <Button 
                 variant="contained"

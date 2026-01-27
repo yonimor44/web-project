@@ -36,6 +36,17 @@ export class User {
   @Column()
   lastName: string;
 
+  // --- שדות חדשים לכתובת ברירת מחדל ---
+  @Column({ nullable: true })
+  defaultAddress: string;
+
+  @Column({ nullable: true })
+  defaultCity: string;
+
+  @Column({ nullable: true })
+  defaultPhone: string;
+  // ------------------------------------
+
   @Column({
     type: 'enum',
     enum: UserRole,

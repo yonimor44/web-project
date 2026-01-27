@@ -3,7 +3,7 @@ import { ThemeProvider, createTheme, Box, CssBaseline } from '@mui/material';
 
 // --- Components ---
 import { Navbar } from './components/Navbar';
-import { Footer } from './components/Footer'; // הוספנו את הפוטר החדש
+import { Footer } from './components/Footer'; 
 import { AdminGuard } from './components/AdminGuard';
 import { CartDrawer } from './components/CartDrawer'; 
 import { CartSuccessModal } from './components/CartSuccessModal';
@@ -18,19 +18,19 @@ import { MyOrdersPage } from './pages/MyOrdersPage';
 import { ProductDetails } from './pages/ProductDetails';
 import { AuthCallback } from './pages/AuthCallback';
 import { CartPage } from './pages/CartPage';
-import { NotFoundPage } from './pages/NotFoundPage'; // הוספנו את דף השגיאה
+import { NotFoundPage } from './pages/NotFoundPage';
+import { ProfilePage } from './pages/ProfilePage'; // <--- וודא שזה קיים
 
-// --- הגדרת העיצוב הגלובלי (Ferrari Theme) ---
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#d32f2f', // Ferrari Red - הצבע השולט
+      main: '#d32f2f', 
     },
     secondary: {
-      main: '#1a1a1a', // שחור כהה
+      main: '#1a1a1a', 
     },
     background: {
-      default: '#f5f5f5', // רקע אפור בהיר לכל האתר
+      default: '#f5f5f5', 
       paper: '#ffffff',
     },
     text: {
@@ -39,16 +39,14 @@ const theme = createTheme({
   },
   typography: {
     fontFamily: 'Assistant, Rubik, sans-serif',
-    button: { fontWeight: 700 }, // כל הכפתורים מודגשים
+    button: { fontWeight: 700 }, 
   },
   components: {
-    // כל הכפתורים באתר יהיו עגולים כברירת מחדל
     MuiButton: {
       styleOverrides: {
         root: { borderRadius: 50, textTransform: 'none' }
       }
     },
-    // כרטיסים עם פינות מעוגלות
     MuiPaper: {
         styleOverrides: {
             rounded: { borderRadius: 16 } 
@@ -60,18 +58,15 @@ const theme = createTheme({
 function App() {
   return (
     <ThemeProvider theme={theme}>
-      <CssBaseline /> {/* איפוס CSS בסיסי ורקע */}
+      <CssBaseline /> 
       
-      {/* מבנה Flex כדי שהפוטר יישאר תמיד למטה */}
       <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
         
         <Navbar />
         
-        {/* הרכיבים האלו זמינים תמיד מעל כל העמודים */}
         <CartDrawer /> 
         <CartSuccessModal /> 
         
-        {/* אזור התוכן הראשי - גדל כדי לתפוס מקום */}
         <Box component="main" sx={{ flexGrow: 1 }}>
           <Routes>
             <Route path="/" element={<HomePage />} />
@@ -84,6 +79,7 @@ function App() {
             <Route path="/cart" element={<CartPage />} />
             <Route path="/checkout" element={<CheckoutPage />} />
             <Route path="/my-orders" element={<MyOrdersPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
 
             {/* אזור מוגן לאדמין */}
             <Route path="/admin" element={
@@ -92,12 +88,10 @@ function App() {
               </AdminGuard>
             } />
 
-            {/* דף 404 לכל נתיב שלא קיים */}
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </Box>
 
-        {/* הפוטר תמיד למטה */}
         <Footer />
 
       </Box>

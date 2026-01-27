@@ -1,18 +1,18 @@
 import api from './api';
 
+// מעדכנים את ה-Interface שיתאים בול למה שהשרת מצפה לקבל
 export interface CreateOrderDto {
     shippingAddress: string;
     city: string;
     phone: string;
+    selectedItemIds?: number[]; // הוספנו את זה כאן
 }
 
 export const ordersService = {
-    // 1. יצירת הזמנה חדשה - מקבלת גם רשימת IDs אופציונלית
-    create: async (orderData: CreateOrderDto, selectedItemIds?: number[]) => {
-        const response = await api.post('/orders', {
-            ...orderData,
-            selectedItemIds // שולחים את זה לשרת
-        });
+    // 1. יצירת הזמנה חדשה
+    // שינינו את זה לקבל ארגומנט אחד שכולל את הכל (הכתובת + הפריטים)
+    create: async (orderData: CreateOrderDto) => {
+        const response = await api.post('/orders', orderData);
         return response.data;
     },
 

@@ -1,16 +1,17 @@
 import { useEffect, useState } from 'react';
-import { Container, Typography, CircularProgress, Box, Grid, TextField, MenuItem, InputAdornment, Paper, Slider, Button, Chip } from '@mui/material';
+import { Container, Typography, CircularProgress, Box, Grid, TextField, MenuItem, InputAdornment, Paper, Slider, Button, Chip, Select, FormControl, InputLabel } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import SortIcon from '@mui/icons-material/Sort';
 import FilterListIcon from '@mui/icons-material/FilterList'; 
-import CloseIcon from '@mui/icons-material/Close'; 
-import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
-import type { Product } from '../types/product.types';
 import { productsService } from '../services/products.service';
 import { ProductCard } from '../components/ProductCard';
+import type { Product } from '../types/product.types';
 import type { ProductFilters } from '../services/products.service';
-import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+
+// ייבוא תמונת הבאנר
+import heroBanner from './hero-banner.png';
+
+const FERRARI_RED = '#d32f2f';
 
 const CATEGORIES = ['All', 'Classic', 'Muscle', 'Sports', 'Luxury', 'SUV'];
 const BRANDS = ['All', 'Burago', 'Maisto', 'AutoArt', 'Hot Wheels'];
@@ -36,9 +37,6 @@ export const HomePage = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   
-  const { user } = useAuth();
-  const navigate = useNavigate();
-
   const [filters, setFilters] = useState<ProductFilters>({
       search: '',
       category: 'All',
@@ -57,7 +55,6 @@ export const HomePage = () => {
 
   const handleFilterTypeChange = (newType: string) => {
       setActiveFilterType(newType);
-      
       setFilters(prev => ({
           ...prev,
           category: 'All',
@@ -88,24 +85,19 @@ export const HomePage = () => {
       try {
         const data = await productsService.getAll(filters);
         setProducts(data);
-      } catch (error) {
-        console.error('Failed to fetch cars:', error);
-      } finally {
-        setLoading(false);
-      }
+      } catch (error) { console.error('Failed to fetch cars:', error); } 
+      finally { setLoading(false); }
     };
 
-    const timeoutId = setTimeout(() => {
-        fetchProducts();
-    }, 300);
-
+    const timeoutId = setTimeout(() => { fetchProducts(); }, 300);
     return () => clearTimeout(timeoutId);
   }, [filters]);
 
-  // עיצוב משותף לשדות Select
   const roundedSelectStyle = { 
-    '& .MuiOutlinedInput-root': { borderRadius: 4, bgcolor: 'background.paper' },
-    '& .MuiOutlinedInput-notchedOutline': { borderColor: '#e0e0e0' }
+    '& .MuiOutlinedInput-root': { borderRadius: 50, bgcolor: '#f9f9f9' }, // עיגול מלא
+    '& .MuiOutlinedInput-notchedOutline': { borderColor: 'transparent' },
+    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#e0e0e0' },
+    '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: FERRARI_RED }
   };
 
   const renderActiveFilterInput = () => {
@@ -142,64 +134,52 @@ export const HomePage = () => {
                       value={filters.maxPrice || 1000}
                       onChange={(_, newValue) => handleFilterValueChange('maxPrice', newValue as number)}
                       min={0} max={1000} step={10} valueLabelDisplay="auto"
+                      sx={{ color: FERRARI_RED }}
                   />
               </Box>
             );
-        default:
-            return null;
+        default: return null;
     }
   };
 
-
-  if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 10 }}><CircularProgress /></Box>;
+  if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 10 }}><CircularProgress sx={{ color: FERRARI_RED }} /></Box>;
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+    <Container maxWidth="xl" sx={{ mt: 4, mb: 8 }}>
       
-      {/* --- Hero Section: כותרת מעוצבת --- */}
-      <Paper 
-        elevation={0}
+      {/* --- Hero Section: תמונה --- */}
+      <Box 
         sx={{ 
-            p: 4, mb: 4, 
-            borderRadius: 6, 
-            background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)', // גרדיאנט עדין ויוקרתי
-            textAlign: 'center',
-            position: 'relative',
-            overflow: 'hidden'
+            display: 'flex', 
+            justifyContent: 'center', 
+            mb: 6, 
+            mt: 2,
+            animation: 'fadeIn 1s ease-in'
         }}
       >
-          <Typography variant="h3" component="h1" gutterBottom sx={{ fontWeight: '900', letterSpacing: '-1px', color: '#2c3e50' }}>
-            🏁 הקטלוג המלא
-          </Typography>
-          <Typography variant="h6" color="text.secondary" sx={{ fontWeight: '500', maxWidth: 600, mx: 'auto' }}>
-              האוסף היוקרתי ביותר של רכבי אספנות בישראל. בחר את הדגם הבא שלך.
-          </Typography>
-
-          {/* כפתור אדמין צף */}
-          {user?.role === 'admin' && (
-             <Box sx={{ position: 'absolute', top: 20, right: 20 }}>
-                 <Button 
-                    variant="contained" 
-                    color="secondary"
-                    size="small"
-                    startIcon={<AdminPanelSettingsIcon />}
-                    onClick={() => navigate('/admin')}
-                    sx={{ borderRadius: 20, textTransform: 'none', fontWeight: 'bold', boxShadow: '0 4px 10px rgba(0,0,0,0.2)' }}
-                 >
-                    Admin Panel
-                 </Button>
-             </Box>
-          )}
-      </Paper>
+          <Box 
+            component="img"
+            src={heroBanner}
+            alt="Yoni Luxury Models"
+            sx={{ 
+                maxWidth: '100%', 
+                height: 'auto', 
+                maxHeight: { xs: 180, md: 300 }, // גובה אופטימלי לבאנר
+                objectFit: 'contain',
+                filter: 'drop-shadow(0px 10px 20px rgba(0,0,0,0.1))' // צללית עדינה
+            }}
+          />
+      </Box>
 
       {/* --- סרגל כלים צף (חיפוש ופילטרים) --- */}
       <Paper 
-        elevation={4} 
+        elevation={0} 
         sx={{ 
             p: 3, mb: 6, 
-            borderRadius: 5, // פינות מעוגלות מאוד
+            borderRadius: 6, 
             bgcolor: 'white',
-            boxShadow: '0 8px 30px rgba(0,0,0,0.08)' // צללית מרחפת
+            border: '1px solid #f0f0f0',
+            boxShadow: '0 8px 30px rgba(0,0,0,0.04)' 
         }}
       >
           <Grid container spacing={3} alignItems="center">
@@ -215,15 +195,7 @@ export const HomePage = () => {
                     InputProps={{ 
                         startAdornment: <InputAdornment position="start"><SearchIcon color="action" /></InputAdornment>,
                     }}
-                    sx={{ 
-                        '& .MuiOutlinedInput-root': { 
-                            borderRadius: 50, // שדה עגול לגמרי (Pill shape)
-                            bgcolor: '#f9f9f9',
-                            '& fieldset': { borderColor: 'transparent' }, // ללא מסגרת בולטת
-                            '&:hover fieldset': { borderColor: '#bdbdbd' },
-                            '&.Mui-focused fieldset': { borderColor: 'primary.main' },
-                        } 
-                    }}
+                    sx={roundedSelectStyle}
                 />
             </Grid>
 
@@ -262,19 +234,18 @@ export const HomePage = () => {
                 </TextField>
             </Grid>
 
-            {/* קלט הסינון הספציפי */}
+            {/* קלט הסינון הספציפי + כפתור ניקוי */}
             {activeFilterType && (
                 <Grid size={{ xs: 12, md: 2 }}>
-                    <Box sx={{ position: 'relative' }}>
-                        {renderActiveFilterInput()}
+                    <Box sx={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box sx={{ flexGrow: 1 }}>
+                            {renderActiveFilterInput()}
+                        </Box>
                         <Chip 
-                            label="נקה" 
+                            label="X" 
                             size="small" 
-                            onDelete={() => handleFilterTypeChange('')}
                             onClick={() => handleFilterTypeChange('')}
-                            color="error"
-                            variant="outlined"
-                            sx={{ position: 'absolute', top: -30, right: 0, height: 20 }}
+                            sx={{ bgcolor: '#ffebee', color: FERRARI_RED, fontWeight: 'bold', cursor: 'pointer' }}
                         />
                     </Box>
                 </Grid>
@@ -286,7 +257,7 @@ export const HomePage = () => {
       {/* --- רשימת המוצרים --- */}
       <Grid container spacing={4}>
         {products.map((car) => (
-          <Grid key={car.id} size={{ xs: 12, sm: 6, md: 4 }}>
+          <Grid key={car.id} size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
             <ProductCard 
                 product={car} 
                 onQuickFilter={handleQuickFilter} 
@@ -301,7 +272,11 @@ export const HomePage = () => {
                     <Typography variant="h6" color="text.secondary">
                         לא נמצאו רכבים תואמים לחיפוש שלך...
                     </Typography>
-                    <Button variant="text" onClick={() => handleFilterTypeChange('')} sx={{ mt: 2 }}>
+                    <Button 
+                        variant="text" 
+                        onClick={() => handleFilterTypeChange('')} 
+                        sx={{ mt: 2, color: FERRARI_RED }}
+                    >
                         נקה את כל הפילטרים
                     </Button>
                 </Paper>

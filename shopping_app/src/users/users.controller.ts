@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Param, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Put, Body, Param, UseGuards, Request, BadRequestException } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { AuthGuard } from '@nestjs/passport';
@@ -19,7 +19,35 @@ export class UsersController {
   @UseGuards(AuthGuard('jwt'))
   @Get('profile')
   getProfile(@Request() req) {
-    return req.user;
+    // בדיקה כפולה: או id או userId
+    const id = req.user.id || req.user.userId;
+    return this.usersService.findOneById(id);
+  }
+
+  // --- עדכון פרופיל אישי (שם, כתובת וכו') ---
+  @UseGuards(AuthGuard('jwt'))
+  @Put('profile')
+  updateProfile(@Request() req, @Body() body: any) {
+      const id = req.user.id || req.user.userId;
+      return this.usersService.updateProfile(id, body);
+  }
+
+  // --- שינוי סיסמה ---
+  @UseGuards(AuthGuard('jwt'))
+  @Post('change-password')
+  changePassword(@Request() req, @Body() body: any) {
+      // 1. חילוץ ה-ID בצורה בטוחה
+      const userId = req.user.id || req.user.userId;
+
+      console.log('DEBUG CONTROLLER: Change Password Request');
+      console.log('DEBUG CONTROLLER: User form Token:', req.user);
+      console.log('DEBUG CONTROLLER: Extracted ID:', userId);
+
+      if (!userId) {
+          throw new BadRequestException('User ID not found in token');
+      }
+
+      return this.usersService.changePassword(+userId, body.currentPassword, body.newPassword);
   }
 
   // --- קבלת כל המשתמשים (רק לאדמין) ---
@@ -30,7 +58,7 @@ export class UsersController {
     return this.usersService.findAll();
   }
 
-  // --- חדש: עדכון תפקיד משתמש (רק לאדמין) ---
+  // --- עדכון תפקיד משתמש (רק לאדמין) ---
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin')
   @Patch(':id/role') // PATCH /users/123/role

@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react';
-import { Container, Paper, Typography, TextField, Button, Box, Divider, Alert, CircularProgress, Grid } from '@mui/material';
+import { Container, Paper, Typography, TextField, Button, Box, Divider, Alert, CircularProgress, Grid, FormControlLabel, Checkbox } from '@mui/material';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext'; 
 import { ordersService } from '../services/orders.service';
+import { usersService } from '../services/users.service'; 
 import { useNavigate, useLocation } from 'react-router-dom';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import StorefrontIcon from '@mui/icons-material/Storefront';
 import EditIcon from '@mui/icons-material/Edit';
+import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
 import type { ChangeEvent, FormEvent } from 'react';
 import type { CreateOrderDto } from '../services/orders.service';
 
@@ -14,6 +17,7 @@ const FERRARI_RED = '#d32f2f';
 
 export const CheckoutPage = () => {
   const { cart, clearCart, fetchCart } = useCart() as any; 
+  const { user, refreshUser } = useAuth(); // הוספנו את refreshUser
   const navigate = useNavigate();
   const location = useLocation();
   const { selectedItemIds } = location.state || {};
@@ -21,8 +25,22 @@ export const CheckoutPage = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [success, setSuccess] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
+  const [saveAsDefault, setSaveAsDefault] = useState(false); 
 
-  const [formData, setFormData] = useState<CreateOrderDto>({ shippingAddress: '', city: '', phone: '' });
+  const [formData, setFormData] = useState<Omit<CreateOrderDto, 'selectedItemIds'>>({ 
+      shippingAddress: '', city: '', phone: '' 
+  });
+
+  // מילוי אוטומטי
+  useEffect(() => {
+    if (user) {
+        setFormData({
+            shippingAddress: user.defaultAddress || '',
+            city: user.defaultCity || '',
+            phone: user.defaultPhone || ''
+        });
+    }
+  }, [user]);
 
   const itemsToCheckout = cart?.items 
     ? (selectedItemIds && selectedItemIds.length > 0 
@@ -44,10 +62,42 @@ export const CheckoutPage = () => {
     e.preventDefault();
     setLoading(true);
     setError('');
+
     try {
-      await ordersService.create(formData, selectedItemIds);
-      if (fetchCart) { await fetchCart(); } 
-      else if (clearCart && (!selectedItemIds || selectedItemIds.length === 0)) { await clearCart(); }
+      // 1. שמירת כתובת כברירת מחדל + רענון גלובלי
+      if (saveAsDefault && user) {
+          try {
+              await usersService.updateProfile({
+                  defaultAddress: formData.shippingAddress,
+                  defaultCity: formData.city,
+                  defaultPhone: formData.phone
+              });
+              // זה התיקון הקריטי! מעדכן את ה-AuthContext במידע החדש
+              if (refreshUser) await refreshUser(); 
+          } catch (err) {
+              console.error("Failed to update default address", err);
+          }
+      }
+
+      // 2. ביצוע ההזמנה
+      const orderPayload: CreateOrderDto = {
+          ...formData,
+          selectedItemIds: selectedItemIds || []
+      };
+
+      await ordersService.create(orderPayload);
+      
+      // 3. ניקוי עגלה - סדר הפעולות תוקן
+      // קודם כל מנקים את ה-UI מיד!
+      if (clearCart && (!selectedItemIds || selectedItemIds.length === 0)) { 
+          clearCart(); 
+      }
+      
+      // אחר כך מסנכרנים מול השרת ליתר ביטחון
+      if (fetchCart) { 
+          await fetchCart(); 
+      }
+      
       setSuccess(true);
     } catch (err: any) {
       console.error(err);
@@ -84,7 +134,23 @@ export const CheckoutPage = () => {
                   <Grid size={{ xs: 6 }}><TextField required fullWidth label="עיר" name="city" margin="normal" value={formData.city} onChange={handleChange} sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3 } }} /></Grid>
                   <Grid size={{ xs: 6 }}><TextField required fullWidth label="טלפון" name="phone" margin="normal" value={formData.phone} onChange={handleChange} sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3 } }} /></Grid>
               </Grid>
+
+              <FormControlLabel
+                control={
+                    <Checkbox 
+                        checked={saveAsDefault}
+                        onChange={(e) => setSaveAsDefault(e.target.checked)}
+                        icon={<RadioButtonUncheckedIcon />}
+                        checkedIcon={<CheckCircleIcon />}
+                        sx={{ color: '#bdbdbd', '&.Mui-checked': { color: FERRARI_RED } }}
+                    />
+                }
+                label="שמור כתובת זו כברירת מחדל להזמנות הבאות"
+                sx={{ mt: 2, color: 'text.secondary' }}
+              />
+
               {error && <Alert severity="error" sx={{ mt: 2, borderRadius: 2 }}>{error}</Alert>}
+              
               <Button type="submit" variant="contained" fullWidth size="large" disabled={loading} sx={{ mt: 4, height: 55, fontSize: '1.2rem', borderRadius: 50, fontWeight: 'bold', bgcolor: FERRARI_RED, boxShadow: '0 8px 20px rgba(211, 47, 47, 0.25)', '&:hover': { bgcolor: '#b71c1c', boxShadow: '0 12px 25px rgba(211, 47, 47, 0.35)' } }}>
                 {loading ? <CircularProgress size={24} color="inherit" /> : `שלם עכשיו ₪${checkoutTotal.toLocaleString()}`}
               </Button>
@@ -109,11 +175,17 @@ export const CheckoutPage = () => {
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
                         <Box component="img" src={item.product.imageUrl} sx={{ width: 50, height: 50, objectFit: 'contain', mr: 2, borderRadius: 2, bgcolor: 'white', p: 0.5, border: '1px solid #eee' }} />
                         <Box>
-                            <Typography variant="body2" fontWeight="bold">{item.product.carMake} {item.product.name}</Typography>
-                            <Typography variant="caption" color="text.secondary">כמות: {item.quantity}</Typography>
+                            <Typography variant="body2" fontWeight="bold" component="div">
+                                {item.product.carMake} {item.product.name}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" component="div">
+                                כמות: {item.quantity}
+                            </Typography>
                         </Box>
                     </Box>
-                    <Typography variant="body2" fontWeight="bold" color="primary" sx={{ color: FERRARI_RED }}>₪{(Number(item.product.price) * item.quantity).toLocaleString()}</Typography>
+                    <Typography variant="body2" fontWeight="bold" color="primary" sx={{ color: FERRARI_RED }}>
+                        ₪{(Number(item.product.price) * item.quantity).toLocaleString()}
+                    </Typography>
                   </Box>
                 ))}
             </Box>

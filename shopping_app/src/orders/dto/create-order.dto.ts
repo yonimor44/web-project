@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty } from 'class-validator';
+import { IsString, IsNotEmpty, IsArray, IsOptional, IsNumber } from 'class-validator';
 
 export class CreateOrderDto {
   @IsString()
@@ -12,4 +12,10 @@ export class CreateOrderDto {
   @IsString()
   @IsNotEmpty()
   phone: string;
+
+  // --- הוספנו את זה כדי שהשרת יקבל את רשימת הפריטים ---
+  @IsArray()
+  @IsOptional()
+  @IsNumber({}, { each: true })
+  selectedItemIds?: number[];
 }

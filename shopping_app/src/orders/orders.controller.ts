@@ -6,32 +6,35 @@ import { Roles } from 'src/auth/roles.decorator';
 import { RolesGuard } from 'src/auth/roles.guard';
 
 @Controller('orders')
-@UseGuards(AuthGuard('jwt')) // ברירת מחדל: הכל דורש התחברות
+@UseGuards(AuthGuard('jwt')) 
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
-  @Post() // POST /orders -> מבצע הזמנה
+  @Post() 
   create(@Request() req, @Body() createOrderDto: CreateOrderDto) {
-    return this.ordersService.create(req.user.userId, createOrderDto);
+    // --- התיקון: אנחנו מעבירים גם את ה-selectedItemIds מתוך ה-DTO ---
+    return this.ordersService.create(
+        req.user.userId, 
+        createOrderDto, 
+        createOrderDto.selectedItemIds // <--- הוספנו את זה
+    );
   }
 
-  // --- החדש: מסלול לאדמין בלבד לקבלת כל ההזמנות ---
-  @Get('all') // GET /orders/all
-  @UseGuards(RolesGuard) // מפעיל את השומר שבודק תפקידים
-  @Roles('admin') // רק מי שיש לו role: 'admin' יכול להיכנס
+  @Get('all') 
+  @UseGuards(RolesGuard) 
+  @Roles('admin') 
   findAll() {
     return this.ordersService.findAll();
   }
-  // ------------------------------------------------
 
-  @Get() // GET /orders -> מביא את ההזמנות שלי
+  @Get() 
   findMyOrders(@Request() req) {
     return this.ordersService.findMyOrders(req.user.userId);
   }
 
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin')
-  @Patch(':id/status') // PATCH /orders/12/status
+  @Patch(':id/status') 
   updateStatus(@Param('id') id: string, @Body('status') status: string) {
     return this.ordersService.updateStatus(+id, status);
   }

@@ -1,12 +1,12 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm'; // הוספתי In
+import { Repository, In } from 'typeorm';
 import { Order, OrderStatus } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
 import { CartService } from 'src/cart/cart.service';
 import { Product } from 'src/products/entities/product.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
-import { CartItem } from 'src/cart/entities/cart-item.entity'; // וודא שיש ייבוא
+import { CartItem } from 'src/cart/entities/cart-item.entity';
 
 @Injectable()
 export class OrdersService {
@@ -17,12 +17,11 @@ export class OrdersService {
     private orderItemsRepository: Repository<OrderItem>,
     @InjectRepository(Product)
     private productsRepository: Repository<Product>,
-    @InjectRepository(CartItem) // הוספת רפוזיטורי כדי למחוק פריטים ספציפיים
+    @InjectRepository(CartItem)
     private cartItemRepository: Repository<CartItem>,
     private cartService: CartService,
   ) {}
 
-  // עדכנו את החתימה: selectedItemIds הוא אופציונלי
   async create(userId: number, createOrderDto: CreateOrderDto, selectedItemIds?: number[]) {
     // 1. שליפת העגלה
     const cart = await this.cartService.findCartByUserId(userId);
@@ -31,17 +30,23 @@ export class OrdersService {
       throw new BadRequestException('Cart is empty');
     }
 
-    // 2. סינון פריטים: אם נשלחו IDs, לוקחים רק אותם. אחרת את כולם.
-    // שים לב: אנחנו מצפים ל-IDs של CartItems, לא של Products
-    const itemsToOrder = (selectedItemIds && selectedItemIds.length > 0)
-        ? cart.items.filter(item => selectedItemIds.includes(item.id))
-        : cart.items;
+    // 2. סינון פריטים
+    // אם נשלחו IDs - לוקחים רק אותם. אחרת - לוקחים את כל הפריטים בעגלה.
+    let itemsToOrder: CartItem[] = [];
+    
+    if (selectedItemIds && selectedItemIds.length > 0) {
+        // המרת ה-IDs למספרים ליתר ביטחון
+        const ids = selectedItemIds.map(id => Number(id));
+        itemsToOrder = cart.items.filter(item => ids.includes(item.id));
+    } else {
+        itemsToOrder = cart.items;
+    }
 
     if (itemsToOrder.length === 0) {
         throw new BadRequestException('No items selected for checkout');
     }
 
-    // 3. יצירת ההזמנה הראשית
+    // 3. יצירת ההזמנה
     const order = this.ordersRepository.create({
       user: { id: userId },
       status: OrderStatus.PENDING,
@@ -53,13 +58,13 @@ export class OrdersService {
     
     const savedOrder = await this.ordersRepository.save(order);
 
-    // 4. המרת פריטי עגלה -> לפריטי הזמנה
+    // 4. עיבוד פריטים ומלאי
     let totalAmount = 0;
-    
+    const itemIdsToDelete: number[] = []; // נאסוף כאן את ה-ID למחיקה
+
     for (const cartItem of itemsToOrder) {
       const priceAtPurchase = cartItem.product.price;
 
-      // בדיקת מלאי
       if(cartItem.product.stock < cartItem.quantity){
         throw new BadRequestException(`Product ${cartItem.product.name} is out of stock`);
       }
@@ -73,27 +78,28 @@ export class OrdersService {
 
       await this.orderItemsRepository.save(orderItem);
 
-      // עדכון מלאי
       cartItem.product.stock -= cartItem.quantity;
       await this.productsRepository.save(cartItem.product);
 
       totalAmount += priceAtPurchase * cartItem.quantity;
+      
+      // הוספה לרשימת המחיקה
+      itemIdsToDelete.push(cartItem.id);
     }
 
-    // 5. עדכון הסכום הסופי
     savedOrder.totalAmount = totalAmount;
     await this.ordersRepository.save(savedOrder);
 
-    // 6. מחיקת הפריטים שהוזמנו בלבד!
-    const itemsToRemove = itemsToOrder.map(item => item.id);
-    if (itemsToRemove.length > 0) {
-        await this.cartItemRepository.delete({ id: In(itemsToRemove) });
+    // 5. מחיקה מהעגלה - השינוי המרכזי
+    // מוחקים ישירות לפי ה-IDs שאספנו
+    if (itemIdsToDelete.length > 0) {
+        await this.cartItemRepository.delete({ id: In(itemIdsToDelete) });
     }
 
     return savedOrder;
   }
   
-  // ... שאר הפונקציות (findAll, findMyOrders, updateStatus) ללא שינוי
+  // ... שאר הפונקציות ללא שינוי ...
   async findAll() {
     return this.ordersRepository.find({ 
         relations: ['user', 'items', 'items.product'],

@@ -1,15 +1,19 @@
-
 export interface User {
-  id: number;
-  email: string;
-  firstName: string;
-  lastName: string;
-  picture?: string;
-  role: 'admin' | 'user'; // האדמין יוכל לשנות מלאי
-  provider?: string;
+    id: number;
+    email: string;
+    firstName: string;
+    lastName: string;
+    role: 'user' | 'admin';
+    picture?: string;
+    provider: string;
+    
+    // --- הוספנו את השדות החדשים כאופציונליים (?) ---
+    defaultAddress?: string;
+    defaultCity?: string;
+    defaultPhone?: string;
 }
 
-export interface AuthResponse {
-  access_token: string;
-  user: User;
+export interface LoginResponse {
+    user: User;
+    access_token: string;
 }

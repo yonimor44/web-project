@@ -14,6 +14,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: any) {
-    return { userId: payload.sub, email: payload.email, role: payload.role };
+    // התיקון: אנחנו מחזירים אובייקט שיש בו שדה 'id' ברור
+    return { 
+        id: payload.sub,      // <--- זה מה שהקונטרולר מחפש!
+        userId: payload.sub,  // שומרים גם את זה לגיבוי
+        email: payload.email, 
+        role: payload.role 
+    };
   }
 }

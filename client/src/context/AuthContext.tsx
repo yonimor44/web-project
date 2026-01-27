@@ -8,11 +8,11 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   loading: boolean;
-  // עדכנו את הטיפוסים כדי שיחזירו User או null
   login: (email: string, pass: string) => Promise<User | null>;
-  loginWithToken: (token: string) => User | null; 
+  loginWithToken: (token: string) => Promise<User | null>; 
   register: (first: string, last: string, email: string, pass: string) => Promise<void>;
   logout: () => void;
+  refreshUser: () => Promise<void>; // --- הוספנו את זה ---
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -21,15 +21,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // --- הפונקציה המרכזית שמפענחת טוקן, מעדכנת ומחזירה את המשתמש ---
-  const handleTokenProcessing = (token: string): User | null => {
+  // --- פונקציה חדשה: מביאה את המידע הכי טרי מהדאטה-בייס ---
+  const fetchUserProfile = async () => {
+    try {
+      // מוסיפים headers כדי למנוע cache
+      const response = await api.get<User>('/users/profile', {
+          headers: { 'Cache-Control': 'no-cache' }
+      });
+      setUser(response.data);
+    } catch (error) {
+      console.error('Failed to refresh user profile', error);
+    }
+  };
+
+  const handleTokenProcessing = async (token: string): Promise<User | null> => {
     localStorage.setItem('token', token);
     api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     
     try {
         const decoded: any = jwtDecode(token);
-        
-        // בדיקת תוקף
         const currentTime = Date.now() / 1000;
         if (decoded.exp < currentTime) {
             console.log('Token expired');
@@ -37,7 +47,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             return null;
         }
 
-        const newUser: User = {
+        // שלב 1: מציגים מיד את המידע מהטוקן (כדי שהממשק יעלה מהר)
+        const userFromToken: User = {
             id: decoded.sub,
             email: decoded.email,
             firstName: decoded.firstName || 'User',
@@ -46,9 +57,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             picture: decoded.picture,
             provider: decoded.provider || 'local'
         };
+        setUser(userFromToken);
 
-        setUser(newUser);
-        return newUser; // <--- חשוב מאוד: מחזירים את המשתמש!
+        // שלב 2: מושכים ברקע את המידע המלא (כולל כתובות) מהשרת
+        // זה מה שמתקן את הבאג שהכתובת נעלמת!
+        await fetchUserProfile();
+
+        return userFromToken;
 
     } catch (e) {
         console.error('Failed to decode token', e);
@@ -57,32 +72,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // בדיקה בטעינה הראשונית של האפליקציה
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-        handleTokenProcessing(token);
-    }
-    setLoading(false);
+    const initAuth = async () => {
+        const token = localStorage.getItem('token');
+        if (token) {
+            await handleTokenProcessing(token);
+        }
+        setLoading(false);
+    };
+    initAuth();
   }, []);
 
-  // --- 1. לוגין רגיל (טופס) ---
   const login = async (email: string, pass: string) => {
     const data = await authService.login(email, pass);
-    // מחזירים את התוצאה של העיבוד (את המשתמש)
     return handleTokenProcessing(data.access_token);
   };
 
-  // --- 2. לוגין ישיר עם טוקן (גוגל) ---
-  const loginWithToken = (token: string) => {
-    // מחזירים את התוצאה של העיבוד
+  const loginWithToken = async (token: string) => {
     return handleTokenProcessing(token);
   };
 
-  // --- 3. הרשמה ---
   const register = async (first: string, last: string, email: string, pass: string) => {
     const data = await authService.register(first, last, email, pass);
-    handleTokenProcessing(data.access_token); 
+    await handleTokenProcessing(data.access_token); 
   };
 
   const logout = () => {
@@ -92,8 +104,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     window.location.href = '/login';
   };
 
+  // פונקציה חשופה לרענון יזום (למשל אחרי שמירת פרופיל)
+  const refreshUser = async () => {
+      await fetchUserProfile();
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, loading, login, loginWithToken, register, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, loading, login, loginWithToken, register, logout, refreshUser }}>
       {!loading && children}
     </AuthContext.Provider>
   );
@@ -101,8 +118,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 };
