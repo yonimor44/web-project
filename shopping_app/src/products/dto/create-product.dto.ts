@@ -1,51 +1,69 @@
-import { IsString, IsNotEmpty, IsNumber, Min, IsUrl, IsBoolean, IsOptional } from 'class-validator';
-import { Type } from 'class-transformer'; // <--- חובה לייבא את זה
+import { IsString, IsNotEmpty, IsNumber, Min, IsBoolean, IsOptional, MaxLength } from 'class-validator';
+import { Type } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateProductDto {
+  @ApiProperty({ example: 'Ferrari F40', description: 'Product Name' })
   @IsString()
   @IsNotEmpty()
+  @MaxLength(255)
   name: string;
 
+  @ApiPropertyOptional({ example: 'A classic 1:18 model', description: 'Product Description' })
   @IsString()
-  @IsOptional() // עדיף שיהיה אופציונלי
+  @IsOptional()
+  @MaxLength(5000)
   description?: string;
 
+  @ApiProperty({ example: 299.90 })
   @IsNumber()
   @Min(0)
-  @Type(() => Number) // <--- קריטי! מונע שגיאות המרה
+  @Type(() => Number)
   price: number;
 
+  @ApiProperty({ example: 10 })
   @IsNumber()
   @Min(0)
-  @Type(() => Number) // <--- קריטי!
+  @Type(() => Number)
   stock: number;
 
+  @ApiPropertyOptional({ example: 'Sports Cars' })
   @IsString()
-  @IsOptional() // שינינו לאופציונלי למקרה שזה ריק
+  @IsOptional()
+  @MaxLength(100)
   category?: string;
 
+  @ApiPropertyOptional({ example: 'Burago' })
   @IsString()
   @IsOptional()
-  brand?: string; // חדש
+  @MaxLength(100)
+  brand?: string;
 
+  @ApiPropertyOptional({ example: 'Ferrari' })
   @IsString()
   @IsOptional()
-  carMake?: string; // חדש
+  @MaxLength(100)
+  carMake?: string;
 
+  @ApiPropertyOptional({ example: '1:18' })
   @IsString()
   @IsOptional()
-  scale?: string; // חדש
+  @MaxLength(50)
+  scale?: string;
 
+  @ApiPropertyOptional({ example: 'Red' })
   @IsString()
   @IsOptional()
-  color?: string; // חדש
+  @MaxLength(50)
+  color?: string;
 
+  @ApiProperty({ example: 'http://img.com/car.jpg' })
   @IsString()
   @IsNotEmpty()
-  // @IsUrl({}, { message: 'Image must be a valid URL link' }) 
-  // הערה: לפעמים IsUrl קשוח מדי עם לינקים ארוכים, אם זה עושה בעיות נשאיר רק IsString
+  @MaxLength(1000)
   imageUrl: string;
 
+  @ApiPropertyOptional({ example: true })
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;

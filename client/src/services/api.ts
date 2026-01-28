@@ -1,7 +1,11 @@
 import axios from 'axios';
 
+// 1. שימוש במשתנה סביבה דינמי (חשוב לייצור!)
+// אם המשתנה לא קיים, רק אז נשתמש ב-localhost כברירת מחדל לפיתוח
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
 const api = axios.create({
-  baseURL: 'http://localhost:3000',
+  baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -9,7 +13,6 @@ const api = axios.create({
 
 api.interceptors.request.use(
   (config) => {
-    // התיקון: מחפשים בדיוק את השם ששמרנו ב-AuthCallback
     const token = localStorage.getItem('token'); 
     
     if (token) {
