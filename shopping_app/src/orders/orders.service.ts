@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { Repository, In, DataSource } from 'typeorm'; // <--- הוספנו DataSource
 import { Order, OrderStatus } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
 import { CartService } from 'src/cart/cart.service';
@@ -20,10 +20,11 @@ export class OrdersService {
     @InjectRepository(CartItem)
     private cartItemRepository: Repository<CartItem>,
     private cartService: CartService,
+    private dataSource: DataSource, // <--- הזרקנו את ה-DataSource לניהול טרנזקציות
   ) {}
 
   async create(userId: number, createOrderDto: CreateOrderDto, selectedItemIds?: number[]) {
-    // 1. שליפת העגלה
+    // 1. שליפת העגלה (קריאה בלבד - אפשר לעשות לפני הטרנזקציה)
     const cart = await this.cartService.findCartByUserId(userId);
 
     if (!cart.items || cart.items.length === 0) {
@@ -31,11 +32,9 @@ export class OrdersService {
     }
 
     // 2. סינון פריטים
-    // אם נשלחו IDs - לוקחים רק אותם. אחרת - לוקחים את כל הפריטים בעגלה.
     let itemsToOrder: CartItem[] = [];
     
     if (selectedItemIds && selectedItemIds.length > 0) {
-        // המרת ה-IDs למספרים ליתר ביטחון
         const ids = selectedItemIds.map(id => Number(id));
         itemsToOrder = cart.items.filter(item => ids.includes(item.id));
     } else {
@@ -46,60 +45,77 @@ export class OrdersService {
         throw new BadRequestException('No items selected for checkout');
     }
 
-    // 3. יצירת ההזמנה
-    const order = this.ordersRepository.create({
-      user: { id: userId },
-      status: OrderStatus.PENDING,
-      totalAmount: 0, 
-      shippingAddress: createOrderDto.shippingAddress,
-      city: createOrderDto.city,
-      phone: createOrderDto.phone,
-    });
-    
-    const savedOrder = await this.ordersRepository.save(order);
+    // --- התחלת הטרנזקציה ---
+    // הכל קורה כאן בפנים. אם יש שגיאה אחת קטנה - הכל מתבטל.
+    return this.dataSource.transaction(async (manager) => {
+      
+      // A. יצירת ההזמנה
+      // משתמשים ב-manager ולא ב-repository
+      const order = manager.create(Order, {
+        user: { id: userId },
+        status: OrderStatus.PENDING,
+        totalAmount: 0, 
+        shippingAddress: createOrderDto.shippingAddress,
+        city: createOrderDto.city,
+        phone: createOrderDto.phone,
+      });
+      
+      const savedOrder = await manager.save(order);
 
-    // 4. עיבוד פריטים ומלאי
-    let totalAmount = 0;
-    const itemIdsToDelete: number[] = []; // נאסוף כאן את ה-ID למחיקה
+      // B. עיבוד פריטים ומלאי
+      let totalAmount = 0;
+      const itemIdsToDelete: number[] = [];
 
-    for (const cartItem of itemsToOrder) {
-      const priceAtPurchase = cartItem.product.price;
+      for (const cartItem of itemsToOrder) {
+        // קריטי: שליפה מחדש של המוצר בתוך הטרנזקציה כדי לוודא מלאי עדכני בזמן אמת
+        const product = await manager.findOne(Product, { where: { id: cartItem.product.id } });
 
-      if(cartItem.product.stock < cartItem.quantity){
-        throw new BadRequestException(`Product ${cartItem.product.name} is out of stock`);
+        if (!product) {
+             throw new BadRequestException(`Product not found`);
+        }
+
+        const priceAtPurchase = product.price;
+
+        // בדיקת מלאי
+        if(product.stock < cartItem.quantity){
+          throw new BadRequestException(`Product ${product.name} is out of stock`);
+        }
+
+        // יצירת שורת פריט
+        const orderItem = manager.create(OrderItem, {
+          order: savedOrder,
+          product: product,
+          quantity: cartItem.quantity,
+          price: priceAtPurchase,
+        });
+
+        await manager.save(orderItem);
+
+        // עדכון מלאי
+        product.stock -= cartItem.quantity;
+        await manager.save(product);
+
+        totalAmount += priceAtPurchase * cartItem.quantity;
+        
+        // הוספה לרשימת המחיקה
+        itemIdsToDelete.push(cartItem.id);
       }
 
-      const orderItem = this.orderItemsRepository.create({
-        order: savedOrder,
-        product: cartItem.product,
-        quantity: cartItem.quantity,
-        price: priceAtPurchase,
-      });
+      // C. עדכון הסכום הסופי בהזמנה
+      savedOrder.totalAmount = totalAmount;
+      await manager.save(savedOrder);
 
-      await this.orderItemsRepository.save(orderItem);
+      // D. מחיקה מהעגלה
+      if (itemIdsToDelete.length > 0) {
+          await manager.delete(CartItem, { id: In(itemIdsToDelete) });
+      }
 
-      cartItem.product.stock -= cartItem.quantity;
-      await this.productsRepository.save(cartItem.product);
-
-      totalAmount += priceAtPurchase * cartItem.quantity;
+      return savedOrder;
       
-      // הוספה לרשימת המחיקה
-      itemIdsToDelete.push(cartItem.id);
-    }
-
-    savedOrder.totalAmount = totalAmount;
-    await this.ordersRepository.save(savedOrder);
-
-    // 5. מחיקה מהעגלה - השינוי המרכזי
-    // מוחקים ישירות לפי ה-IDs שאספנו
-    if (itemIdsToDelete.length > 0) {
-        await this.cartItemRepository.delete({ id: In(itemIdsToDelete) });
-    }
-
-    return savedOrder;
+    }); // --- סוף הטרנזקציה ---
   }
   
-  // ... שאר הפונקציות ללא שינוי ...
+  // שאר הפונקציות נשארות רגילות (קריאה בלבד)
   async findAll() {
     return this.ordersRepository.find({ 
         relations: ['user', 'items', 'items.product'],
