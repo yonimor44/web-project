@@ -3,68 +3,77 @@ import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateProductDto {
-  @ApiProperty({ example: 'Ferrari F40', description: 'Product Name' })
+  @ApiProperty({ description: 'Product Name' })
   @IsString()
   @IsNotEmpty()
   @MaxLength(255)
   name: string;
 
-  @ApiPropertyOptional({ example: 'A classic 1:18 model', description: 'Product Description' })
+  @ApiPropertyOptional({ description: 'Product Description' })
   @IsString()
   @IsOptional()
   @MaxLength(5000)
   description?: string;
 
-  @ApiProperty({ example: 299.90 })
+  @ApiProperty({ description: 'Price in USD' })
   @IsNumber()
   @Min(0)
-  @Type(() => Number)
+  @Type(() => Number) // קריטי ל-Form Data
   price: number;
 
-  @ApiProperty({ example: 10 })
+  @ApiProperty({ description: 'Stock quantity' })
   @IsNumber()
   @Min(0)
-  @Type(() => Number)
+  @Type(() => Number) // קריטי ל-Form Data
   stock: number;
 
-  @ApiPropertyOptional({ example: 'Sports Cars' })
+  @ApiPropertyOptional({ description: 'Category name' })
   @IsString()
   @IsOptional()
   @MaxLength(100)
   category?: string;
 
-  @ApiPropertyOptional({ example: 'Burago' })
+  @ApiPropertyOptional({ description: 'Brand name' })
   @IsString()
   @IsOptional()
   @MaxLength(100)
   brand?: string;
 
-  @ApiPropertyOptional({ example: 'Ferrari' })
+  @ApiPropertyOptional({ description: 'Car manufacturer' })
   @IsString()
   @IsOptional()
   @MaxLength(100)
   carMake?: string;
 
-  @ApiPropertyOptional({ example: '1:18' })
+  @ApiPropertyOptional({ description: 'Scale (e.g. 1:18)' })
   @IsString()
   @IsOptional()
   @MaxLength(50)
   scale?: string;
 
-  @ApiPropertyOptional({ example: 'Red' })
+  @ApiPropertyOptional({ description: 'Color' })
   @IsString()
   @IsOptional()
   @MaxLength(50)
   color?: string;
 
-  @ApiProperty({ example: 'http://img.com/car.jpg' })
+  // --- שינוי מס' 1: imageUrl הוא אופציונלי בהתחלה ---
+  @ApiProperty({ required: false, description: 'URL or empty if uploading file' })
   @IsString()
-  @IsNotEmpty()
+  @IsOptional() // חייב להיות אופציונלי כדי לאפשר העלאת קובץ
   @MaxLength(1000)
-  imageUrl: string;
+  imageUrl?: string;
+
+  // --- שינוי מס' 2: הוספת שדה לקובץ ---
+  @ApiProperty({ type: 'string', format: 'binary', required: false, description: 'Upload image file' })
+  @IsOptional()
+  file?: any; 
+  // ------------------------------------
 
   @ApiPropertyOptional({ example: true })
   @IsBoolean()
   @IsOptional()
+  // המרה למקרה שזה נשלח כטקסט "true"/"false" ב-FormData
+  @Type(() => Boolean) 
   isActive?: boolean;
 }

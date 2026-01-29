@@ -12,6 +12,7 @@ import InventoryIcon from '@mui/icons-material/Inventory';
 import ShoppingBagIcon from '@mui/icons-material/ShoppingBag';
 import PeopleIcon from '@mui/icons-material/People';
 import DashboardIcon from '@mui/icons-material/Dashboard';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload'; // אייקון חדש
 
 import { productsService } from '../services/products.service'; 
 import { ordersService } from '../services/orders.service';
@@ -54,13 +55,15 @@ export const AdminPage = () => {
   const [orders, setOrders] = useState<any[]>([]); 
   const [users, setUsers] = useState<User[]>([]);
   
-  // שינוי: מתחילים ב-false כדי שהעמוד ייטען מיד, והטעינה תהיה פנימית
   const [loading, setLoading] = useState(false);
 
   const [openDialog, setOpenDialog] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [currentProductId, setCurrentProductId] = useState<number | null>(null);
   const [formData, setFormData] = useState<ProductInput>(INITIAL_FORM_STATE);
+
+  // --- תוספת: סטייט לקובץ ---
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   useEffect(() => { loadData(); }, [currentTab]);
 
@@ -99,10 +102,17 @@ export const AdminPage = () => {
   const dynamicMakes = useMemo(() => getUniqueOptions(DEFAULT_MAKES, 'carMake'), [products]);
   const dynamicScales = useMemo(() => getUniqueOptions(DEFAULT_SCALES, 'scale'), [products]);
 
-  const handleOpenAdd = () => { setEditMode(false); setFormData(INITIAL_FORM_STATE); setOpenDialog(true); };
+  const handleOpenAdd = () => { 
+      setEditMode(false); 
+      setFormData(INITIAL_FORM_STATE); 
+      setSelectedFile(null); // איפוס
+      setOpenDialog(true); 
+  };
   
   const handleOpenEdit = (product: Product) => {
-      setEditMode(true); setCurrentProductId(product.id);
+      setEditMode(true); 
+      setCurrentProductId(product.id);
+      setSelectedFile(null); // איפוס
       setFormData({
           name: product.name, description: product.description, price: Number(product.price),
           stock: product.stock, category: product.category, imageUrl: product.imageUrl,
@@ -122,12 +132,38 @@ export const AdminPage = () => {
       setFormData(prev => ({ ...prev, [name]: value || '' }));
   };
 
+  // --- שמירה עם FormData ---
   const handleSave = async () => {
       try {
-          const payload = { ...formData, price: Number(formData.price), stock: Number(formData.stock), category: formData.category || '', brand: formData.brand || '', carMake: formData.carMake || '', scale: formData.scale || '', color: formData.color || '' };
-          if (editMode && currentProductId) { await productsService.updateProduct(currentProductId, payload); } 
-          else { await productsService.createProduct(payload); }
-          loadData(); handleCloseDialog();
+          const data = new FormData();
+          
+          data.append('name', formData.name);
+          data.append('price', String(formData.price));
+          data.append('stock', String(formData.stock));
+          data.append('description', formData.description);
+          data.append('category', formData.category || '');
+          data.append('brand', formData.brand || '');
+          data.append('carMake', formData.carMake || '');
+          data.append('scale', formData.scale || '');
+          data.append('color', formData.color || '');
+          
+          // אם לא בחרו קובץ, שולחים את ה-URL הישן (אם יש)
+          if (!selectedFile) {
+              data.append('imageUrl', formData.imageUrl || '');
+          }
+
+          // אם בחרו קובץ - מצרפים אותו
+          if (selectedFile) {
+              data.append('file', selectedFile);
+          }
+
+          if (editMode && currentProductId) { 
+              await productsService.updateProduct(currentProductId, data as any); 
+          } else { 
+              await productsService.createProduct(data as any); 
+          }
+          loadData(); 
+          handleCloseDialog();
       } catch (error: any) { alert('שגיאה בשמירה'); }
   };
 
@@ -141,7 +177,6 @@ export const AdminPage = () => {
   return (
     <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
       
-      {/* כותרת דאשבורד (נשארת קבועה!) */}
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 4, gap: 2 }}>
           <Avatar sx={{ bgcolor: FERRARI_RED, width: 50, height: 50, boxShadow: '0 4px 10px rgba(211, 47, 47, 0.3)' }}>
               <DashboardIcon />
@@ -151,7 +186,6 @@ export const AdminPage = () => {
           </Typography>
       </Box>
 
-      {/* טאבים (נשארים קבועים!) */}
       <Paper elevation={0} sx={{ mb: 4, borderRadius: 4, border: '1px solid #e0e0e0', overflow: 'hidden' }}>
           <Tabs 
             value={currentTab} 
@@ -168,7 +202,6 @@ export const AdminPage = () => {
           </Tabs>
       </Paper>
 
-      {/* אזור התוכן המשתנה - כאן מתבצעת הטעינה */}
       <Box sx={{ minHeight: 400 }}>
         {loading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 400 }}>
@@ -317,11 +350,49 @@ export const AdminPage = () => {
         )}
       </Box>
 
-      {/* --- דיאלוג מוצרים (מעוגל + גריד החדש) --- */}
+      {/* --- דיאלוג מוצרים (מעודכן ומתוקן למבנה שלך) --- */}
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: 4 } }}>
         <DialogTitle sx={{ fontWeight: 'bold', bgcolor: '#f5f5f5' }}>{editMode ? 'עריכת מוצר ✏️' : 'הוספת מוצר חדש ➕'}</DialogTitle>
         <DialogContent dividers>
             <Grid container spacing={2} sx={{ mt: 0.5 }}>
+                
+                {/* --- אזור העלאת התמונה (Grid size=12) --- */}
+                <Grid size={{ xs: 12 }}>
+                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1, p: 1, border: '1px dashed #ccc', borderRadius: 2 }}>
+                        <Button
+                            component="label"
+                            variant="outlined"
+                            startIcon={<CloudUploadIcon />}
+                            sx={{ borderRadius: 20 }}
+                        >
+                            בחר תמונה מהמחשב
+                            <input
+                                type="file"
+                                hidden
+                                accept="image/*"
+                                onChange={(e) => {
+                                    if (e.target.files && e.target.files[0]) {
+                                        setSelectedFile(e.target.files[0]);
+                                    }
+                                }}
+                            />
+                        </Button>
+                        <Typography variant="body2" sx={{ fontStyle: 'italic', color: selectedFile ? 'success.main' : 'text.secondary' }}>
+                            {selectedFile ? `קובץ נבחר: ${selectedFile.name}` : 'לא נבחר קובץ חדש'}
+                        </Typography>
+                     </Box>
+                     <TextField 
+                        label="או הדבק קישור ישיר (URL)" 
+                        name="imageUrl" 
+                        fullWidth 
+                        required={!selectedFile} 
+                        value={formData.imageUrl} 
+                        onChange={handleChange} 
+                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3 } }} 
+                     />
+                </Grid>
+
+                {/* --- שאר השדות במבנה size החדש --- */}
                 <Grid size={{ xs: 12, sm: 6 }}><TextField label="שם הדגם" name="name" fullWidth required value={formData.name} onChange={handleChange} sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3 } }} /></Grid>
                 <Grid size={{ xs: 12, sm: 6 }}><Autocomplete freeSolo options={dynamicMakes} value={formData.carMake} onChange={(_, v) => handleAutocompleteChange('carMake', v)} onInputChange={(_, v) => handleAutocompleteChange('carMake', v)} renderInput={(p) => <TextField {...p} label="יצרן רכב" required sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3 } }} />} /></Grid>
                 <Grid size={{ xs: 12, sm: 6 }}><Autocomplete freeSolo options={dynamicCategories} value={formData.category} onChange={(_, v) => handleAutocompleteChange('category', v)} onInputChange={(_, v) => handleAutocompleteChange('category', v)} renderInput={(p) => <TextField {...p} label="קטגוריה" required sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3 } }} />} /></Grid>
@@ -330,7 +401,6 @@ export const AdminPage = () => {
                 <Grid size={{ xs: 6, sm: 3 }}><TextField label="מלאי" name="stock" type="number" fullWidth required value={formData.stock} onChange={handleChange} sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3 } }} /></Grid>
                 <Grid size={{ xs: 6, sm: 3 }}><Autocomplete freeSolo options={dynamicScales} value={formData.scale} onChange={(_, v) => handleAutocompleteChange('scale', v)} onInputChange={(_, v) => handleAutocompleteChange('scale', v)} renderInput={(p) => <TextField {...p} label="קנה מידה" sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3 } }} />} /></Grid>
                 <Grid size={{ xs: 6, sm: 3 }}><TextField label="צבע" name="color" fullWidth value={formData.color} onChange={handleChange} sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3 } }} /></Grid>
-                <Grid size={{ xs: 12 }}><TextField label="קישור לתמונה (URL)" name="imageUrl" fullWidth required value={formData.imageUrl} onChange={handleChange} sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3 } }} /></Grid>
                 <Grid size={{ xs: 12 }}><TextField label="תיאור מלא" name="description" fullWidth multiline rows={3} value={formData.description} onChange={handleChange} sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3 } }} /></Grid>
             </Grid>
         </DialogContent>

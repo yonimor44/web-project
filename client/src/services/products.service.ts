@@ -1,7 +1,6 @@
 import api from './api';
 import type { Product } from '../types/product.types';
 
-
 export interface ProductInput {
     name: string;
     description: string;
@@ -26,9 +25,7 @@ export interface ProductFilters {
 }
 
 export const productsService = {
-  // הפונקציה מקבלת עכשיו אובייקט פילטרים
   getAll: async (filters: ProductFilters = {}) => {
-    
     const params = new URLSearchParams();
     
     if (filters.search) params.append('search', filters.search);
@@ -52,14 +49,23 @@ export const productsService = {
     await api.delete(`/products/${id}`);
   },
 
-  createProduct: async (productData: ProductInput) => {
-      const response = await api.post<Product>('/products', productData);
+  // --- תיקון: תמיכה ב-FormData ---
+  createProduct: async (productData: ProductInput | FormData) => {
+      const isFormData = productData instanceof FormData;
+      
+      const response = await api.post<Product>('/products', productData, {
+          headers: isFormData ? { 'Content-Type': 'multipart/form-data' } : undefined
+      });
       return response.data;
   },
 
-  // --- חדש: עדכון מוצר ---
-  updateProduct: async (id: number, productData: Partial<ProductInput>) => {
-      const response = await api.patch<Product>(`/products/${id}`, productData);
+  // --- תיקון: תמיכה ב-FormData ---
+  updateProduct: async (id: number, productData: Partial<ProductInput> | FormData) => {
+      const isFormData = productData instanceof FormData;
+
+      const response = await api.patch<Product>(`/products/${id}`, productData, {
+          headers: isFormData ? { 'Content-Type': 'multipart/form-data' } : undefined
+      });
       return response.data;
   }
 };

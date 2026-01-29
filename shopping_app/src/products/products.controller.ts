@@ -1,26 +1,44 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query, UseInterceptors, UploadedFile, BadRequestException } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { Roles } from 'src/auth/roles.decorator';
 import { RolesGuard } from 'src/auth/roles.guard';
-// --- סוואגר ---
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import { CloudinaryService } from '../common/services/cloudinary.service';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery, ApiConsumes } from '@nestjs/swagger';
 
 @ApiTags('Products')
 @Controller('products')
 export class ProductsController {
-  constructor(private readonly productsService: ProductsService) {}
+  constructor(
+    private readonly productsService: ProductsService,
+    private readonly cloudinaryService: CloudinaryService
+  ) {}
 
-  @ApiBearerAuth() // מסמן שצריך מנעול (טוקן)
-  @ApiOperation({ summary: 'Create new product (Admin only)' })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create new product (Admin only) - supports Image Upload' })
   @ApiResponse({ status: 201, description: 'The product has been successfully created.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
+  @ApiConsumes('multipart/form-data') 
   @Post()
   @Roles('admin')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  create(@Body() createProductDto: CreateProductDto) {
+  @UseInterceptors(FileInterceptor('file'))
+  async create(
+    @Body() createProductDto: CreateProductDto,
+    @UploadedFile() file: Express.Multer.File 
+  ) {
+    if (file) {
+        const imageUrl = await this.cloudinaryService.uploadImage(file);
+        createProductDto.imageUrl = imageUrl;
+    } 
+    
+    if (!createProductDto.imageUrl) {
+        throw new BadRequestException('Image is required (upload a file or provide imageUrl)');
+    }
+
     return this.productsService.create(createProductDto);
   }
 
@@ -51,14 +69,30 @@ export class ProductsController {
     return this.productsService.findOne(+id);
   }
 
+  // --- השינוי הגדול: הוספת תמיכה בתמונות גם לעדכון ---
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update product (Admin only)' })
+  @ApiConsumes('multipart/form-data') // 1. מודיעים לסוואגר שיש פה קובץ
   @Patch(':id')
   @Roles('admin')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  update(@Param('id') id: string, @Body() updateProductDto: UpdateProductDto) {
+  @UseInterceptors(FileInterceptor('file')) // 2. תופסים את הקובץ
+  async update(
+      @Param('id') id: string, 
+      @Body() updateProductDto: UpdateProductDto,
+      @UploadedFile() file: Express.Multer.File // 3. מקבלים אותו
+    ) {
+    
+    // 4. אם המשתמש העלה תמונה חדשה בעריכה - מעלים אותה ומעדכנים את הלינק
+    if (file) {
+        const imageUrl = await this.cloudinaryService.uploadImage(file);
+        updateProductDto.imageUrl = imageUrl;
+    }
+
+    // אם לא נשלח קובץ, updateProductDto ישתמש ב-URL הישן (אם נשלח) או יתעלם מהשדה
     return this.productsService.update(+id, updateProductDto);
   }
+  // ----------------------------------------------------
 
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete product (Admin only)' })
