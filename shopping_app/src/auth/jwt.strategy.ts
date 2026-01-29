@@ -1,6 +1,6 @@
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common'; // <--- הוספנו את ה-Exception
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
@@ -9,7 +9,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     // 1. שליפה בטוחה של הסוד
     const secret = configService.get<string>('JWT_SECRET');
 
-    // 2. בדיקה קריטית: אם אין סוד, השרת חייב לעצור!
+    // 2. הגנה כפולה: מוודאים שהסוד קיים גם כאן
     if (!secret) {
         throw new Error('FATAL ERROR: JWT_SECRET is missing in .env configuration');
     }
@@ -17,12 +17,17 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: secret, // עכשיו זה בטוח, בלי סימן קריאה
+      secretOrKey: secret, // בטוח לשימוש
     });
   }
 
   async validate(payload: any) {
-    // התיקון הקודם שלך נשמר - הוא מצוין
+    // 3. הגנה נוספת: אם הטוקן פוענח אבל אין בו תוכן (נדיר, אבל קורה)
+    if (!payload) {
+        throw new UnauthorizedException('Invalid token payload');
+    }
+
+    // החזרת המשתמש המאומת ל-Request
     return { 
         id: payload.sub,
         userId: payload.sub,

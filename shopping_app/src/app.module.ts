@@ -8,36 +8,38 @@ import { AuthModule } from './auth/auth.module';
 import { ProductsModule } from './products/products.module';
 import { OrdersModule } from './orders/orders.module';
 import { CartModule } from './cart/cart.module';
-// --- תוספת לאבטחה: הגבלת בקשות ---
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
+// --- הייבוא החדש של הולידציה ---
+import { validate } from './config/env.validation'; 
 
 @Module({
   imports: [
     // 1. הגדרת מגבלת בקשות (Rate Limiting)
-    // ttl: זמן באלפיות שנייה (60000 = דקה)
-    // limit: כמה בקשות מותר בזמן הזה (60 בקשות)
     ThrottlerModule.forRoot([{
       ttl: 60000,
       limit: 60,
     }]),
 
+    // 2. חיבור הולידציה למשתני הסביבה
     ConfigModule.forRoot({
       isGlobal: true,
+      validate, // <--- המפתח שמפעיל את הבדיקות!
     }),
 
+    // 3. חיבור לדאטה-בייס (משתמש בערכים המאומתים)
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         type: 'postgres',
-        host: process.env.DB_HOST,
-        port: parseInt(process.env.DB_PORT || '5432', 10),
-        username: process.env.DB_USERNAME,
-        password: process.env.DB_PASSWORD,
-        database: process.env.DB_NAME,
+        host: configService.get<string>('DB_HOST'),
+        port: configService.get<number>('DB_PORT'), // הערך כבר הומר למספר בולידציה
+        username: configService.get<string>('DB_USERNAME'),
+        password: configService.get<string>('DB_PASSWORD'),
+        database: configService.get<string>('DB_NAME'),
         autoLoadEntities: true,
-        synchronize: true, 
+        synchronize: true, // לזכור לשנות ל-false בייצור!
       }),
     }),
     UsersModule,
@@ -49,7 +51,6 @@ import { APP_GUARD } from '@nestjs/core';
   controllers: [AppController],
   providers: [
     AppService,
-    // 2. הפעלת השומר הגלובלי על כל האפליקציה
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
