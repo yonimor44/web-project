@@ -2,15 +2,16 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, On
 import { User } from '../../users/entities/user.entity';
 import { OrderItem } from './order-item.entity';
 
-// הגדרת הסטטוסים האפשריים
+// סטטוסים אפשריים להזמנה
 export enum OrderStatus {
-  PENDING = 'pending',       // התקבל
+  PENDING = 'pending',       // ממתין
   PROCESSING = 'Processing', // בטיפול
   SHIPPED = 'Shipped',       // נשלח
-  DELIVERED = 'Delivered',   // הגיע ליעד
+  DELIVERED = 'Delivered',   // הגיע
   CANCELLED = 'Cancelled',   // בוטל
 }
 
+// ישות הזמנה - מרכזת את כל המידע על הרכישה
 @Entity()
 export class Order {
   @PrimaryGeneratedColumn()
@@ -27,10 +28,17 @@ export class Order {
   })
   status: OrderStatus;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  // סכום לתשלום (מחושב בעת היצירה)
+  @Column({ 
+    type: 'decimal', 
+    precision: 10, 
+    scale: 2, 
+    default: 0 
+  })
   totalAmount: number;
 
-  // --- הוספה: פרטי משלוח (חובה לכל הזמנה) ---
+  // --- פרטי משלוח (נשמרים כ-Snapshot) ---
+
   @Column()
   shippingAddress: string;
 
@@ -39,13 +47,12 @@ export class Order {
 
   @Column()
   phone: string;
-  // ------------------------------------------
 
-  // קשר למשתמש (משתמש אחד -> הרבה הזמנות)
+  // --- קשרים ---
+
   @ManyToOne(() => User, (user) => user.orders)
   user: User;
 
-  // קשר לפריטים (הזמנה אחת -> הרבה פריטים)
   @OneToMany(() => OrderItem, (orderItem) => orderItem.order, { cascade: true })
   items: OrderItem[];
 }

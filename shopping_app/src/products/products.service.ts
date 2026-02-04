@@ -5,6 +5,12 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { Product } from './entities/product.entity';
 import { UpdateProductDto } from './dto/update-product.dto';
 
+/**
+ * @class ProductsService
+ * @description
+ * שכבת הלוגיקה העסקית (Business Logic Layer) לניהול מוצרים.
+ * מחלקה זו אחראית על התקשורת מול בסיס הנתונים (Repository) וביצוע מניפולציות על המידע.
+ */
 @Injectable()
 export class ProductsService {
   constructor(
@@ -12,13 +18,13 @@ export class ProductsService {
     private productsRepository: Repository<Product>,
   ) {}
 
-  // --- יצירת מוצר חדש (מקבל את הנתונים מהאדמין פייג') ---
+ // יצירת מוצר חדש
   async create(createProductDto: CreateProductDto) {
-    const product = this.productsRepository.create(createProductDto);
-    return this.productsRepository.save(product);
+    const product = this.productsRepository.create(createProductDto); // יצירת ישות חדשה
+    return this.productsRepository.save(product); // שמירה בבסיס הנתונים
   }
 
-  // --- שליפת כל המוצרים עם סינונים וחיפוש ---
+ // שליפת כל המוצרים עם אפשרויות סינון ומיון
   async findAll(
     search?: string, 
     category?: string, 
@@ -28,28 +34,31 @@ export class ProductsService {
     sort?: string,
     maxPrice?: number
   ) {
-    // 1. תנאים בסיסיים (פילטרים רגילים)
+
+    // שלב 1: בניית אובייקט תנאים בסיסי (Base Conditions)
+    // תנאים אלו הם מסוג "AND" - כלומר המוצר חייב לעמוד בכולם.
     const baseConditions: any = {};
 
-    if (category && category !== 'All') baseConditions.category = category;
-    if (brand && brand !== 'All') baseConditions.brand = brand;
-    if (carMake && carMake !== 'All') baseConditions.carMake = carMake;
-    if (scale && scale !== 'All') baseConditions.scale = scale;
-    if (maxPrice && maxPrice > 0) baseConditions.price = LessThanOrEqual(maxPrice);
+    if (category && category !== 'All') baseConditions.category = category; // סינון לפי קטגוריה
+    if (brand && brand !== 'All') baseConditions.brand = brand; // סינון לפי מותג
+    if (carMake && carMake !== 'All') baseConditions.carMake = carMake; // סינון לפי יצרן
+    if (scale && scale !== 'All') baseConditions.scale = scale; // סינון לפי קנה מידה
+    if (maxPrice && maxPrice > 0) baseConditions.price = LessThanOrEqual(maxPrice); // סינון לפי מחיר מקסימלי
 
-    // 2. לוגיקת חיפוש (Search)
-    // אם יש חיפוש, אנחנו בודקים אם הוא מופיע בשם, ביצרן או במותג
+    // 2. לוגיקת חיפוש (OR)
+    // אם יש חיפוש, בודקים אותו בשם, ביצרן ובמותג במקביל
     let where: any = baseConditions;
 
     if (search) {
       where = [
-        { ...baseConditions, name: ILike(`%${search}%`) },      // חפש בשם הדגם
-        { ...baseConditions, carMake: ILike(`%${search}%`) },   // חפש ביצרן הרכב
-        { ...baseConditions, brand: ILike(`%${search}%`) }      // חפש במותג הצעצוע
+        { ...baseConditions, name: ILike(`%${search}%`) },    // שם הדגם
+        { ...baseConditions, carMake: ILike(`%${search}%`) }, // יצרן הרכב
+        { ...baseConditions, brand: ILike(`%${search}%`) }    // מותג הצעצוע
       ];
     }
 
-    // 3. לוגיקת מיון (Sorting)
+
+    // שלב 3: הגדרת סדר המיון (Sorting)
     const order: any = {};
 
     if (sort === 'price_asc') {
@@ -57,27 +66,28 @@ export class ProductsService {
     } else if (sort === 'price_desc') {
         order.price = 'DESC';     // מהיקר לזול
     } else if (sort === 'name_asc') {
-        order.name = 'ASC';       // לפי שם א-ת
+        order.name = 'ASC';       // אלפביתי א-ת
     } else if (sort === 'name_desc') {
-        order.name = 'DESC';      // לפי שם ת-א
+        order.name = 'DESC';      // אלפביתי ת-א
     } else {
-        order.id = 'DESC';        // ברירת מחדל: החדשים ביותר קודם
+        order.id = 'DESC';        // ברירת מחדל: המוצרים החדשים ביותר (ID גבוה) ראשונים
     }
 
+    // ביצוע השאילתה מול בסיס הנתונים
     return this.productsRepository.find({ where, order });
   }
 
-  // --- שליפת מוצר בודד ---
+  // שליפת מוצר לפי מזהה  
   async findOne(id: number) {
     return this.productsRepository.findOne({ where: { id } });
   }
 
-  // --- עדכון מוצר ---
+  // עדכון מוצר קיים
   async update(id: number, updateProductDto: UpdateProductDto) {
     return this.productsRepository.update(id, updateProductDto);
   }
 
-  // --- מחיקת מוצר ---
+  // מחיקת מוצר
   async remove(id: number) {
     return this.productsRepository.delete(id);
   }

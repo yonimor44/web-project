@@ -4,11 +4,12 @@ import { CartService } from './cart.service';
 import { CartController } from './cart.controller';
 import { Cart } from './entities/cart.entity';
 import { CartItem } from './entities/cart-item.entity';
-import { Product } from '../products/entities/product.entity'; // <--- הוספה קריטית
+import { Product } from '../products/entities/product.entity';
 
+// מודול עגלה - מייבא גם את ישות Product לבדיקות מלאי
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Cart, CartItem, Product]) // <--- הוספנו את Product כדי שנוכל לבדוק מלאי
+    TypeOrmModule.forFeature([Cart, CartItem, Product])
   ],
   controllers: [CartController],
   providers: [CartService],

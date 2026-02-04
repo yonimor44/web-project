@@ -4,13 +4,11 @@ import { Repository, In, DataSource } from 'typeorm';
 import { Order, OrderStatus } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
-
-// --- התיקון: שינוי לנתיבים יחסיים (../) במקום src ---
-// זה מה שפותר את השגיאה בטסטים
 import { CartService } from '../cart/cart.service';
 import { Product } from '../products/entities/product.entity';
 import { CartItem } from '../cart/entities/cart-item.entity';
 
+// שירות ניהול הזמנות - כולל טרנזקציות ומלאי
 @Injectable()
 export class OrdersService {
   constructor(
@@ -26,6 +24,7 @@ export class OrdersService {
     private dataSource: DataSource,
   ) {}
 
+  // יצירת הזמנה חדשה (תהליך Checkout)
   async create(userId: number, createOrderDto: CreateOrderDto, selectedItemIds?: number[]) {
     // 1. שליפת העגלה
     const cart = await this.cartService.findCartByUserId(userId);
@@ -34,7 +33,7 @@ export class OrdersService {
       throw new BadRequestException('Cart is empty');
     }
 
-    // 2. סינון פריטים
+    // 2. סינון פריטים (אם נבחרו ספציפית)
     let itemsToOrder: CartItem[] = [];
     
     if (selectedItemIds && selectedItemIds.length > 0) {
@@ -48,10 +47,10 @@ export class OrdersService {
         throw new BadRequestException('No items selected for checkout');
     }
 
-    // --- התחלת הטרנזקציה ---
+    // --- התחלת טרנזקציה (מבטיח שהכל יקרה או כלום) ---
     return this.dataSource.transaction(async (manager) => {
       
-      // A. יצירת ההזמנה
+      // A. יצירת רשומת הזמנה ראשונית
       const order = manager.create(Order, {
         user: { id: userId },
         status: OrderStatus.PENDING,
@@ -63,13 +62,15 @@ export class OrdersService {
       
       const savedOrder = await manager.save(order);
 
-      // B. עיבוד פריטים ומלאי
+      // B. לולאה על הפריטים: בדיקת מלאי, יצירת שורות ועדכון
       let totalAmount = 0;
       const itemIdsToDelete: number[] = [];
 
       for (const cartItem of itemsToOrder) {
-        // שליפה מחדש בתוך הטרנזקציה לנעילת המלאי
-        const product = await manager.findOne(Product, { where: { id: cartItem.product.id } });
+        // נעילת מוצר בתוך הטרנזקציה
+        const product = await manager.findOne(Product, { 
+            where: { id: cartItem.product.id } 
+        });
 
         if (!product) {
              throw new BadRequestException(`Product not found`);
@@ -77,7 +78,7 @@ export class OrdersService {
 
         const priceAtPurchase = product.price;
 
-        // בדיקת מלאי
+        // בדיקת מלאי קריטית
         if(product.stock < cartItem.quantity){
           throw new BadRequestException(`Product ${product.name} is out of stock`);
         }
@@ -92,20 +93,19 @@ export class OrdersService {
 
         await manager.save(orderItem);
 
-        // עדכון מלאי
+        // עדכון המלאי ב-DB
         product.stock -= cartItem.quantity;
         await manager.save(product);
 
         totalAmount += priceAtPurchase * cartItem.quantity;
-        
         itemIdsToDelete.push(cartItem.id);
       }
 
-      // C. עדכון הסכום הסופי
+      // C. עדכון סכום סופי
       savedOrder.totalAmount = totalAmount;
       await manager.save(savedOrder);
 
-      // D. מחיקה מהעגלה
+      // D. ניקוי הפריטים מהעגלה
       if (itemIdsToDelete.length > 0) {
           await manager.delete(CartItem, { id: In(itemIdsToDelete) });
       }
@@ -114,7 +114,7 @@ export class OrdersService {
     }); 
   }
   
-  // שאר הפונקציות
+  // שליפת כל ההזמנות (Admin)
   async findAll() {
     return this.ordersRepository.find({ 
         relations: ['user', 'items', 'items.product'],
@@ -122,6 +122,7 @@ export class OrdersService {
     });
   }
 
+  // שליפת הזמנות למשתמש
   async findMyOrders(userId: number) {
      return this.ordersRepository.find({ 
        where: { user: { id: userId } },
@@ -130,6 +131,7 @@ export class OrdersService {
      });
   }
 
+  // עדכון סטטוס (Admin)
   async updateStatus(id: number, status: string) {
     return this.ordersRepository.update(id, { status: status as any });
   }

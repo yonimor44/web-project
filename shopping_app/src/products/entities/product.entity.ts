@@ -2,47 +2,51 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateCol
 import { CartItem } from '../../cart/entities/cart-item.entity';
 import { OrderItem } from '../../orders/entities/order-item.entity';
 
+// ישות מוצר - הטבלה שמחזיקה את כל דגמי המכוניות
 @Entity()
 export class Product {
+ 
   @PrimaryGeneratedColumn()
-  id: number;
+  id: number; // מזהה ייחודי של המוצר
 
   @Column()
-  name: string; // לדוגמה: "Mustang GT"
+  name: string; // שם המוצר
 
   @Column({ type: 'text' })
-  description: string;
+  description: string; // תיאור מפורט של המוצר
 
-  @Column({ type: 'decimal', precision: 10, scale: 2 })
+  // מחיר המוצר בפורמט עשרוני עם דיוק של 2 ספרות אחרי הנקודה 
+  @Column({ 
+    type: 'decimal',
+    precision: 10,
+    scale: 2 // מספר הספרות אחרי הנקודה העשרונית
+  })
   price: number;
 
   @Column({ type: 'int' })
-  stock: number;
+  stock: number; // כמות המלאי הזמינה למוצר 
 
   @Column()
-  category: string; // לדוגמה: "Muscle", "Sports"
-
+  category: string; // קטגוריית המוצר
+ 
   @Column()
-  imageUrl: string;
+  imageUrl: string; // URL לתמונת המוצר
 
   @Column({ default: true })
-  isActive: boolean;
+  isActive: boolean; // האם המוצר פעיל וזמין למכירה
 
-  // --- שדות חדשים שהוספנו לחנות דגמים ---
-  // שמתי nullable: true למקרה שיש לך כבר מוצרים ב-DB שלא יקרסו
-  
-  @Column({ nullable: true }) 
-  brand: string; // יצרן הדגם: Burago, Maisto
+// --- שדות ייחודיים לדגמי רכב (Car Specs) ---
 
   @Column({ nullable: true })
-  carMake: string; // יצרן הרכב: Ford, Ferrari
+  brand: string; // מותג הרכב 
 
   @Column({ nullable: true })
-  scale: string; // קנה מידה: 1:18, 1:24
+  carMake: string; // יצרן הרכב 
 
   @Column({ nullable: true })
-  color: string; // צבע הדגם: Red, Black
-  // ---------------------------------------
+  scale: string; // קנה מידה של הדגם 
+  @Column({ nullable: true })
+  color: string; //` צבע הרכב
 
   @CreateDateColumn()
   createdAt: Date;
@@ -50,10 +54,13 @@ export class Product {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  // --- החיבורים הקיימים שלך (לא נגענו!) ---
+// --- קשרים עם ישויות אחרות ---
+
+// מוצר יכול להופיע בפריטי עגלה רבים
   @OneToMany(() => CartItem, (cartItem) => cartItem.product)
   cartItems: CartItem[];
 
+// מוצר יכול להופיע בפריטי הזמנה רבים
   @OneToMany(() => OrderItem, (orderItem) => orderItem.product)
   orderItems: OrderItem[];
 }

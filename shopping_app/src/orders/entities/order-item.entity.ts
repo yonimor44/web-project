@@ -2,6 +2,7 @@ import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';
 import { Product } from '../../products/entities/product.entity';
 import { Order } from './order.entity';
 
+// שורת פריט בהזמנה
 @Entity()
 export class OrderItem {
   @PrimaryGeneratedColumn()

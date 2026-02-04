@@ -7,8 +7,8 @@ import { ConfigService } from '@nestjs/config';
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   constructor(private configService: ConfigService) {
     super({
-      clientID: configService.getOrThrow<string>('GOOGLE_CLIENT_ID'), // וודא שיש לך את זה ב-.env
-      clientSecret: configService.getOrThrow<string>('GOOGLE_CLIENT_SECRET'), // וודא שיש לך את זה ב-.env
+      clientID: configService.getOrThrow<string>('GOOGLE_CLIENT_ID'),
+      clientSecret: configService.getOrThrow<string>('GOOGLE_CLIENT_SECRET'), 
       callbackURL: configService.getOrThrow<string>('GOOGLE_CALLBACK_URL'), // http://localhost:3000/auth/google/redirect
       scope: ['email', 'profile'],
     });

@@ -5,21 +5,23 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { Roles } from 'src/auth/roles.decorator';
 import { RolesGuard } from 'src/auth/roles.guard';
 
+// בקר הזמנות - מחייב חיבור
 @Controller('orders')
 @UseGuards(AuthGuard('jwt')) 
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
+  // ביצוע הזמנה
   @Post() 
   create(@Request() req, @Body() createOrderDto: CreateOrderDto) {
-    // --- התיקון: אנחנו מעבירים גם את ה-selectedItemIds מתוך ה-DTO ---
     return this.ordersService.create(
         req.user.userId, 
         createOrderDto, 
-        createOrderDto.selectedItemIds // <--- הוספנו את זה
+        createOrderDto.selectedItemIds 
     );
   }
 
+  // כל ההזמנות (Admin)
   @Get('all') 
   @UseGuards(RolesGuard) 
   @Roles('admin') 
@@ -27,11 +29,13 @@ export class OrdersController {
     return this.ordersService.findAll();
   }
 
+  // ההזמנות שלי
   @Get() 
   findMyOrders(@Request() req) {
     return this.ordersService.findMyOrders(req.user.userId);
   }
 
+  // שינוי סטטוס (Admin)
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin')
   @Patch(':id/status') 

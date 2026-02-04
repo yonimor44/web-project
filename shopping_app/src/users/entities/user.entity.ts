@@ -1,15 +1,14 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, OneToOne } from 'typeorm';
 import { Order } from '../../orders/entities/order.entity';
-import { OneToMany } from 'typeorm';
-import {Cart} from "../../cart/entities/cart.entity";
-import {OneToOne} from "typeorm";
+import { Cart } from '../../cart/entities/cart.entity';
 
-// מגדיר שיש לנו enum לתפקידים - למניעת שגיאות כתיב
+// הגדרת תפקידים (מונע שגיאות כתיב בקוד)
 export enum UserRole {
   ADMIN = 'admin',
   USER = 'user',
 }
 
+// ישות משתמש - טבלת הליבה של המערכת
 @Entity()
 export class User {
   @PrimaryGeneratedColumn()
@@ -18,15 +17,22 @@ export class User {
   @Column({ unique: true })
   email: string;
 
+ // סיסמה היא אופציונלית כי למשתמשי גוגל אין סיסמה בשרת שלנו
   @Column({ nullable: true })
   password: string;
 
-  @Column({ nullable: true }) // שדה לא חובה למשתמשים שנרשמים דרך גוגל
+  
+   // מזהה ייחודי המתקבל מ-Google OAuth.
+   // משמש לזיהוי המשתמש בכניסות חוזרות דרך גוגל.
+  @Column({ nullable: true })
   googleId?: string;
 
-  @Column({ default: 'local' }) // ברירת מחדל: משתמש רגיל
-  provider: string
   
+// ספק האימות: 'local' או 'google'.
+  
+  @Column({ default: 'local' })
+  provider: string;
+
   @Column()
   firstName: string;
 
@@ -36,7 +42,8 @@ export class User {
   @Column()
   lastName: string;
 
-  // --- שדות חדשים לכתובת ברירת מחדל ---
+  // --- שדות לכתובת ברירת מחדל (לזירוז ה-Checkout) ---
+
   @Column({ nullable: true })
   defaultAddress: string;
 
@@ -45,25 +52,27 @@ export class User {
 
   @Column({ nullable: true })
   defaultPhone: string;
-  // ------------------------------------
 
+  // תפקיד המשתמש במערכת
   @Column({
     type: 'enum',
     enum: UserRole,
     default: UserRole.USER,
-    nullable: true
+    nullable: true,
   })
   role: UserRole;
 
   @CreateDateColumn()
-  createdAt: Date; // שומר אוטומטית מתי נוצר המשתמש
+  createdAt: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date; // שומר אוטומטית מתי עודכן לאחרונה
+  updatedAt: Date;
 
+ // משתמש אחד יכול לבצע הזמנות רבות
   @OneToMany(() => Order, (order) => order.user)
   orders: Order[];
 
+  // למשתמש יש עגלה אחת פעילה
   @OneToOne(() => Cart, (cart) => cart.user)
   cart: Cart;
 }

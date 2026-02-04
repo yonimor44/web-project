@@ -2,6 +2,7 @@ import { Entity, PrimaryGeneratedColumn, OneToOne, JoinColumn, OneToMany, Create
 import { User } from '../../users/entities/user.entity';
 import { CartItem } from './cart-item.entity';
 
+// ישות עגלת קניות
 @Entity()
 export class Cart {
   @PrimaryGeneratedColumn()
@@ -13,12 +14,12 @@ export class Cart {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  // הקשר למשתמש: לכל משתמש עגלה אחת (OneToOne)
+  // קשר 1:1 למשתמש
   @OneToOne(() => User, (user) => user.cart, { onDelete: 'CASCADE' })
-  @JoinColumn() // הצד הזה מחזיק את ה-Foreign Key
+  @JoinColumn()
   user: User;
 
-  // הקשר לפריטים: עגלה אחת מכילה הרבה פריטים
+  // קשר 1:N לפריטים
   @OneToMany(() => CartItem, (item) => item.cart, { cascade: true })
   items: CartItem[];
 }

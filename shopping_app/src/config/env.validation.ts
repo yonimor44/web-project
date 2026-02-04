@@ -1,6 +1,10 @@
 import { plainToClass } from 'class-transformer';
 import { IsNotEmpty, IsString, MinLength, validateSync, IsNumber } from 'class-validator';
 
+
+ //מחלקה המגדירה את מבנה משתני הסביבה (.env)
+ //ומבצעת ולידציה לכל משתנה כדי להבטיח שהשרת יעלה עם הגדרות תקינות.
+
 class EnvironmentVariables {
   @IsString()
   @IsNotEmpty()
@@ -36,20 +40,31 @@ class EnvironmentVariables {
   SESSION_SECRET: string;
 }
 
+/**
+ * פונקציה המבצעת את בדיקת התקינות בפועל בעת עליית השרת.
+ * @param config - אובייקט הקונפיגורציה הגולמי שנקרא מהקובץ
+ * @returns validatedConfig - הקונפיגורציה התקינה לאחר המרה ואימות
+ */
 export function validate(config: Record<string, unknown>) {
+  // המרת האובייקט הגולמי למחלקת EnvironmentVariables
   const validatedConfig = plainToClass(
     EnvironmentVariables,
     {
       ...config,
-      DB_PORT: parseInt(config.DB_PORT as string, 10), // המרה למספר
+      DB_PORT: parseInt(config.DB_PORT as string, 10), // המרה מפורשת למספר
     },
     { enableImplicitConversion: true },
   );
 
-  const errors = validateSync(validatedConfig, { skipMissingProperties: false });
+  // ביצוע הולידציה
+  const errors = validateSync(validatedConfig, { 
+    skipMissingProperties: false 
+  });
 
+  // אם יש שגיאות - עוצרים את עליית השרת וזורקים שגיאה
   if (errors.length > 0) {
     throw new Error(errors.toString());
   }
+  
   return validatedConfig;
 }
