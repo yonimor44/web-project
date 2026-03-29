@@ -39,9 +39,15 @@ spec:
             value: "http://localhost:5173"
           - name: SESSION_SECRET
             value: "super-secret-session-key"
+          - name: GOOGLE_CLIENT_ID
+            value: "dummy-google-client-id"
+          - name: GOOGLE_CLIENT_SECRET
+            value: "dummy-google-client-secret"
+          - name: GOOGLE_CALLBACK_URL
+            value: "http://localhost:3000/auth/google/callback"
         resources:
           limits:
-            memory: "256Mi"
+            memory: "512Mi"
             cpu: "500m"
         livenessProbe:
           httpGet:
