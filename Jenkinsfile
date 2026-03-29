@@ -45,8 +45,13 @@ pipeline {
                     withCredentials([file(credentialsId: 'my-kubeconfig', variable: 'KUBECONFIG')]) {
                         // מריץ את קובצי ה-YAML שיצרנו קודם
                         sh 'kubectl apply -f k8s/'
-                        // מעדכן את הפודים לתמונה החדשה הרגע דחפנו
-                        sh 'kubectl set image deployment/shopping-backend-deployment shopping-backend=${IMAGE_NAME}:${BUILD_NUMBER}'
+                        
+                        // 🚀 התיקון שלנו: הזרקה ישירה של התמונה מהזיכרון של ג'נקינס לקלאסטר
+                        sh "docker save ${IMAGE_NAME}:${BUILD_NUMBER} | docker exec -i k3d-my-cluster-server-0 ctr -n k8s.io images import -"
+                        
+                        // 🛠️ תיקון הבאג השקט: שימוש בגרשיים כפולים כדי שג'נקינס יקרא את המשתנים
+                        sh "kubectl set image deployment/shopping-backend-deployment shopping-backend=${IMAGE_NAME}:${BUILD_NUMBER}"
+                        
                         // מחכה שהשרתים החדשים יעלו ויהיו בריאים לחלוטין
                         sh 'kubectl rollout status deployment/shopping-backend-deployment'
                     }
