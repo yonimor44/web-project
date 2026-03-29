@@ -24,7 +24,7 @@ spec:
         - containerPort: 3000
         env:
           - name: JWT_SECRET
-            value: "super-secret-jwt-key"
+            value: "super-secret-jwt-key-that-is-very-long-12345"
           - name: DB_HOST
             value: "postgres-service"
           - name: DB_PORT
