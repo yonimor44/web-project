@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: shopping-backend-deployment
 spec:
-  replicas: 3 # נרים 3 עותקים לפי הדרישות
+  replicas: 3
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -19,16 +19,33 @@ spec:
     spec:
       containers:
       - name: shopping-backend
-        image: localhost:5000/shopping-backend:latest # משם הוא ייקח את תמונת הדוקר
+        image: localhost:5000/shopping-backend:latest
         ports:
         - containerPort: 3000
+        env:
+          - name: JWT_SECRET
+            value: "super-secret-jwt-key"
+          - name: DB_HOST
+            value: "localhost"
+          - name: DB_PORT
+            value: "5432"
+          - name: DB_USERNAME
+            value: "postgres"
+          - name: DB_PASSWORD
+            value: "postgres"
+          - name: DB_NAME
+            value: "shopping_db"
+          - name: FRONTEND_URL
+            value: "http://localhost:5173"
+          - name: SESSION_SECRET
+            value: "super-secret-session-key"
         resources:
           limits:
             memory: "256Mi"
             cpu: "500m"
         livenessProbe:
           httpGet:
-            path: /health # פה קוברנטיס משתמש בנתיב שיצרנו בשלב 1!
+            path: /health
             port: 3000
           initialDelaySeconds: 15
         readinessProbe:
