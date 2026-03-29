@@ -1,5 +1,5 @@
 # שלב 1: שלב הבנייה והקימפול
-FROM node:18-alpine AS builder
+FROM node:22-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
 RUN npm install
@@ -8,7 +8,7 @@ RUN npm run build
 # ^ הפקודה הזו יוצרת את תיקיית dist עם הקוד המקומפל
 
 # שלב 2: תמונת הפרודקשן הנקייה
-FROM node:18-alpine
+FROM node:22-alpine
 WORKDIR /app
 COPY --from=builder /app/package*.json ./
 RUN npm install --only=production
