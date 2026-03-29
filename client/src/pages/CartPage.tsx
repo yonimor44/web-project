@@ -1,3 +1,6 @@
+// דף העגלה המלא. מציג את כל הפריטים, מאפשר בחירה מרובה (Checkbox),
+// עדכון כמויות, ומעבר לתשלום (Checkout).
+
 import { useState, useEffect } from 'react';
 import { 
     Container, Typography, Box, List, ListItem, ListItemAvatar, 
@@ -10,8 +13,8 @@ import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ShoppingCartCheckoutIcon from '@mui/icons-material/ShoppingCartCheckout';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle'; // אייקון מסומן עגול
-import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked'; // אייקון לא מסומן עגול
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
 import { useCart } from '../context/CartContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -21,8 +24,10 @@ export const CartPage = () => {
   const { cart, removeFromCart, updateQuantity, loading } = useCart();
   const navigate = useNavigate();
 
+  // סטייט לפריטים שנבחרו לתשלום
   const [selectedItems, setSelectedItems] = useState<number[]>([]);
 
+  // בחירת כל הפריטים כברירת מחדל בטעינה הראשונה
   useEffect(() => {
     if (cart?.items) {
         if (selectedItems.length === 0 && cart.items.length > 0) {
@@ -31,6 +36,7 @@ export const CartPage = () => {
     }
   }, [cart]);
 
+  // טיפול בבחירה/ביטול בחירה של פריט
   const handleToggle = (itemId: number) => {
     if (selectedItems.includes(itemId)) {
         setSelectedItems(prev => prev.filter(id => id !== itemId));
@@ -39,6 +45,7 @@ export const CartPage = () => {
     }
   };
 
+  // חישוב סה"כ רק עבור הפריטים המסומנים
   const selectedTotal = cart?.items
     .filter(item => selectedItems.includes(item.id))
     .reduce((sum, item) => sum + (Number(item.product.price) * item.quantity), 0) || 0;
@@ -47,11 +54,13 @@ export const CartPage = () => {
   const sortedItems = cart?.items ? [...cart.items].sort((a, b) => a.id - b.id) : [];
 
   const handleCheckout = () => {
+      // מעבר לקופה רק עם ה-IDs שנבחרו
       navigate('/checkout', { state: { selectedItemIds: selectedItems } });
   };
 
   if (loading) return <Typography sx={{ mt: 4, textAlign: 'center' }}>טוען עגלה...</Typography>;
 
+  // --- מצב עגלה ריקה ---
   if (!cart || cart.items.length === 0) {
     return (
       <Container maxWidth="md" sx={{ mt: 8, textAlign: 'center' }}>
@@ -62,8 +71,7 @@ export const CartPage = () => {
             נראה שעוד לא בחרת רכבים. זה הזמן להתחיל!
             </Typography>
             <Button 
-                variant="contained" 
-                onClick={() => navigate('/')}
+                variant="contained" onClick={() => navigate('/')}
                 sx={{ borderRadius: 50, px: 4, fontWeight: 'bold', bgcolor: FERRARI_RED, '&:hover': { bgcolor: '#b71c1c' } }}
             >
             חזרה לחנות
@@ -95,29 +103,21 @@ export const CartPage = () => {
                   </Tooltip>
                 }
               >
-                {/* --- צ'ק בוקס עגול ויפה --- */}
+                {/* צ'קבוקס לבחירה */}
                 <Checkbox 
                     checked={isSelected}
                     onChange={() => handleToggle(item.id)}
-                    icon={<RadioButtonUncheckedIcon />} // עיגול ריק
-                    checkedIcon={<CheckCircleIcon />}   // עיגול מלא עם וי
-                    sx={{ 
-                        mr: 1, 
-                        color: '#bdbdbd', 
-                        '&.Mui-checked': { color: FERRARI_RED } 
-                    }}
+                    icon={<RadioButtonUncheckedIcon />}
+                    checkedIcon={<CheckCircleIcon />}
+                    sx={{ mr: 1, color: '#bdbdbd', '&.Mui-checked': { color: FERRARI_RED } }}
                 />
 
                 <ListItemAvatar sx={{ mr: 2 }}>
                   <Avatar 
-                    variant="rounded" 
-                    src={item.product.imageUrl} 
+                    variant="rounded" src={item.product.imageUrl} 
                     sx={{ 
-                        width: 90, height: 90, 
-                        objectFit: 'contain', 
-                        bgcolor: 'transparent',
-                        filter: isSelected ? 'none' : 'grayscale(100%) opacity(0.5)', 
-                        transition: '0.3s'
+                        width: 90, height: 90, objectFit: 'contain', bgcolor: 'transparent',
+                        filter: isSelected ? 'none' : 'grayscale(100%) opacity(0.5)', transition: '0.3s'
                     }} 
                   />
                 </ListItemAvatar>
@@ -136,37 +136,18 @@ export const CartPage = () => {
                       
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, opacity: isSelected ? 1 : 0.5 }}>
                         
-                        {/* --- כפתורי כמות מעוגלים (קפסולה) --- */}
-                        <Box sx={{ 
-                            display: 'flex', alignItems: 'center', 
-                            bgcolor: '#f5f5f5', 
-                            borderRadius: 50, // קפסולה עגולה
-                            px: 1, py: 0.5,
-                            border: '1px solid #eee'
-                        }}>
-                            <IconButton 
-                                size="small" 
-                                onClick={() => { if (item.quantity > 1) updateQuantity(item.product.id, item.quantity - 1); }} 
-                                disabled={item.quantity <= 1 || !isSelected}
-                                sx={{ width: 28, height: 28 }}
-                            >
+                        {/* כפתורי שליטה בכמות */}
+                        <Box sx={{ display: 'flex', alignItems: 'center', bgcolor: '#f5f5f5', borderRadius: 50, px: 1, py: 0.5, border: '1px solid #eee' }}>
+                            <IconButton size="small" onClick={() => { if (item.quantity > 1) updateQuantity(item.product.id, item.quantity - 1); }} disabled={item.quantity <= 1 || !isSelected} sx={{ width: 28, height: 28 }}>
                                 <RemoveIcon fontSize="small" sx={{ fontSize: 16 }} />
                             </IconButton>
                             
-                            <Typography sx={{ mx: 1.5, fontWeight: 'bold', fontSize: '0.95rem' }}>
-                                {item.quantity}
-                            </Typography>
+                            <Typography sx={{ mx: 1.5, fontWeight: 'bold', fontSize: '0.95rem' }}>{item.quantity}</Typography>
                             
-                            <IconButton 
-                                size="small" 
-                                onClick={() => updateQuantity(item.product.id, item.quantity + 1)} 
-                                disabled={item.quantity >= item.product.stock || !isSelected}
-                                sx={{ width: 28, height: 28 }}
-                            >
+                            <IconButton size="small" onClick={() => updateQuantity(item.product.id, item.quantity + 1)} disabled={item.quantity >= item.product.stock || !isSelected} sx={{ width: 28, height: 28 }}>
                                 <AddIcon fontSize="small" sx={{ fontSize: 16 }} />
                             </IconButton>
                         </Box>
-                        {/* -------------------------------------- */}
 
                         <Typography variant="h6" sx={{ fontWeight: 'bold', ml: 'auto', color: FERRARI_RED }}>
                           ₪{(Number(item.product.price) * item.quantity).toLocaleString()}
@@ -181,6 +162,7 @@ export const CartPage = () => {
           )})}
         </List>
 
+        {/* --- סיכום עגלה --- */}
         <Box sx={{ p: 4, bgcolor: '#fdfdfd' }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
             <Typography variant="body1" color="text.secondary">פריטים שנבחרו לתשלום:</Typography>
@@ -195,15 +177,9 @@ export const CartPage = () => {
           </Box>
           
           <Button 
-            variant="contained" 
-            size="large" 
-            fullWidth 
-            onClick={handleCheckout}
-            disabled={selectedCount === 0}
-            startIcon={<ShoppingCartCheckoutIcon />}
+            variant="contained" size="large" fullWidth onClick={handleCheckout} disabled={selectedCount === 0} startIcon={<ShoppingCartCheckoutIcon />}
             sx={{ 
-                py: 1.8, fontSize: '1.2rem', borderRadius: 50, 
-                bgcolor: FERRARI_RED, boxShadow: '0 8px 16px rgba(211, 47, 47, 0.24)',
+                py: 1.8, fontSize: '1.2rem', borderRadius: 50, bgcolor: FERRARI_RED, boxShadow: '0 8px 16px rgba(211, 47, 47, 0.24)',
                 '&:hover': { bgcolor: '#b71c1c', boxShadow: '0 12px 20px rgba(211, 47, 47, 0.3)' }
             }}
           >
@@ -212,11 +188,7 @@ export const CartPage = () => {
         </Box>
       </Paper>
       
-      <Button 
-        startIcon={<ArrowBackIcon />} 
-        onClick={() => navigate('/')} 
-        sx={{ mt: 3, borderRadius: 50, px: 3, color: 'text.secondary', '&:hover': { color: FERRARI_RED, bgcolor: 'transparent' } }}
-      >
+      <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/')} sx={{ mt: 3, borderRadius: 50, px: 3, color: 'text.secondary', '&:hover': { color: FERRARI_RED, bgcolor: 'transparent' } }}>
         המשך בקניות
       </Button>
     </Container>

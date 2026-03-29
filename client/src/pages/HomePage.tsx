@@ -1,5 +1,8 @@
+// דף הבית - קטלוג המוצרים.
+// כולל באנר ראשי, סרגל סינון וחיפוש מתקדם, ותצוגת גריד של המוצרים.
+
 import { useEffect, useState } from 'react';
-import { Container, Typography, CircularProgress, Box, Grid, TextField, MenuItem, InputAdornment, Paper, Slider, Button, Chip, Select, FormControl, InputLabel } from '@mui/material';
+import { Container, Typography, CircularProgress, Box, Grid, TextField, MenuItem, InputAdornment, Paper, Slider, Button, Chip } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import SortIcon from '@mui/icons-material/Sort';
 import FilterListIcon from '@mui/icons-material/FilterList'; 
@@ -7,17 +10,11 @@ import { productsService } from '../services/products.service';
 import { ProductCard } from '../components/ProductCard';
 import type { Product } from '../types/product.types';
 import type { ProductFilters } from '../services/products.service';
-
-// ייבוא תמונת הבאנר
 import heroBanner from './hero-banner.png';
 
 const FERRARI_RED = '#d32f2f';
 
-const CATEGORIES = ['All', 'Classic', 'Muscle', 'Sports', 'Luxury', 'SUV'];
-const BRANDS = ['All', 'Burago', 'Maisto', 'AutoArt', 'Hot Wheels'];
-const CAR_MAKES = ['All', 'Ferrari', 'Lamborghini', 'Ford', 'Porsche', 'Mazda'];
-const SCALES = ['All', '1:18', '1:24', '1:43', '1:64'];
-
+// אפשרויות מיון קבועות
 const SORT_OPTIONS = [
     { value: 'name_asc', label: 'שם: א-ת' },
     { value: 'name_desc', label: 'שם: ת-א' },
@@ -25,6 +22,7 @@ const SORT_OPTIONS = [
     { value: 'price_desc', label: 'מחיר: מהיקר לזול' },
 ];
 
+// סוגי פילטרים זמינים
 const FILTER_TYPES = [
     { value: 'category', label: 'קטגוריה' },
     { value: 'maxPrice', label: 'טווח מחיר' },
@@ -34,9 +32,17 @@ const FILTER_TYPES = [
 ];
 
 export const HomePage = () => {
+  // --- States לנתונים דינמיים ---
+  // רשימות אלו מתמלאות אוטומטית לפי המוצרים הקיימים במסד הנתונים
+  const [categoriesList, setCategoriesList] = useState<string[]>(['All']);
+  const [brandsList, setBrandsList] = useState<string[]>(['All']);
+  const [carMakesList, setCarMakesList] = useState<string[]>(['All']);
+  const [scalesList, setScalesList] = useState<string[]>(['All']);
+
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   
+  // ניהול מצב הפילטרים הנוכחי
   const [filters, setFilters] = useState<ProductFilters>({
       search: '',
       category: 'All',
@@ -47,12 +53,42 @@ export const HomePage = () => {
       maxPrice: 1000
   });
 
+  // איזה פילטר נוסף פתוח כרגע? (קטגוריה/מחיר וכו')
   const [activeFilterType, setActiveFilterType] = useState<string>('');
 
+  // --- טעינת אפשרויות סינון (בעליית הדף) ---
+  useEffect(() => {
+    const fetchFilterOptions = async () => {
+      try {
+        // מביאים את כל המוצרים כדי לגזור מהם את הקטגוריות הקיימות
+        const allProducts = await productsService.getAll({}); 
+        
+        const getUniqueValues = (key: keyof Product) => {
+            const values = allProducts.map(p => p[key]).filter(Boolean);
+            return ['All', ...Array.from(new Set(values as string[])).sort()];
+        };
+
+        setCategoriesList(getUniqueValues('category'));
+        setBrandsList(getUniqueValues('brand'));
+        setCarMakesList(getUniqueValues('carMake'));
+        setScalesList(getUniqueValues('scale'));
+
+      } catch (error) {
+        console.error('Failed to load filter options:', error);
+      }
+    };
+
+    fetchFilterOptions();
+  }, []);
+
+  // --- לוגיקה לשינוי פילטרים ---
+  
+  // שינוי ערך ספציפי (למשל בחירת קטגוריה 'Sports')
   const handleFilterValueChange = (key: keyof ProductFilters, value: any) => {
       setFilters(prev => ({ ...prev, [key]: value }));
   };
 
+  // החלפת סוג הפילטר הפעיל (ואיפוס האחרים)
   const handleFilterTypeChange = (newType: string) => {
       setActiveFilterType(newType);
       setFilters(prev => ({
@@ -65,6 +101,7 @@ export const HomePage = () => {
       }));
   };
 
+  // סינון מהיר (בלחיצה על צ'יפ בכרטיס מוצר)
   const handleQuickFilter = (type: string, value: string) => {
       setActiveFilterType(type);
       setFilters({
@@ -75,11 +112,13 @@ export const HomePage = () => {
           scale: 'All',
           sort: 'name_asc',
           maxPrice: 1000,
-          [type]: value
+          [type]: value // דורס רק את הפילטר הרלוונטי
       });
       window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // --- שליפת מוצרים (Debounced) ---
+  // בכל שינוי ב-filters, נשלח בקשה לשרת עם השהיה קטנה למניעת עומס
   useEffect(() => {
     const fetchProducts = async () => {
       try {
@@ -93,37 +132,39 @@ export const HomePage = () => {
     return () => clearTimeout(timeoutId);
   }, [filters]);
 
+  // סגנון אחיד לכל ה-Selects
   const roundedSelectStyle = { 
-    '& .MuiOutlinedInput-root': { borderRadius: 50, bgcolor: '#f9f9f9' }, // עיגול מלא
+    '& .MuiOutlinedInput-root': { borderRadius: 50, bgcolor: '#f9f9f9' },
     '& .MuiOutlinedInput-notchedOutline': { borderColor: 'transparent' },
     '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#e0e0e0' },
     '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: FERRARI_RED }
   };
 
+  // רינדור דינמי של הפילטר הפעיל
   const renderActiveFilterInput = () => {
     switch (activeFilterType) {
         case 'category':
             return (
               <TextField select fullWidth label="בחר קטגוריה" value={filters.category} onChange={(e) => handleFilterValueChange('category', e.target.value)} sx={roundedSelectStyle}>
-                  {CATEGORIES.map((opt) => <MenuItem key={opt} value={opt}>{opt}</MenuItem>)}
+                  {categoriesList.map((opt) => <MenuItem key={opt} value={opt}>{opt}</MenuItem>)}
               </TextField>
             );
         case 'brand':
             return (
               <TextField select fullWidth label="בחר מותג" value={filters.brand} onChange={(e) => handleFilterValueChange('brand', e.target.value)} sx={roundedSelectStyle}>
-                  {BRANDS.map((opt) => <MenuItem key={opt} value={opt}>{opt}</MenuItem>)}
+                  {brandsList.map((opt) => <MenuItem key={opt} value={opt}>{opt}</MenuItem>)}
               </TextField>
             );
         case 'carMake':
             return (
               <TextField select fullWidth label="בחר יצרן" value={filters.carMake} onChange={(e) => handleFilterValueChange('carMake', e.target.value)} sx={roundedSelectStyle}>
-                  {CAR_MAKES.map((opt) => <MenuItem key={opt} value={opt}>{opt}</MenuItem>)}
+                  {carMakesList.map((opt) => <MenuItem key={opt} value={opt}>{opt}</MenuItem>)}
               </TextField>
             );
         case 'scale':
             return (
               <TextField select fullWidth label="בחר קנה מידה" value={filters.scale} onChange={(e) => handleFilterValueChange('scale', e.target.value)} sx={roundedSelectStyle}>
-                  {SCALES.map((opt) => <MenuItem key={opt} value={opt}>{opt}</MenuItem>)}
+                  {scalesList.map((opt) => <MenuItem key={opt} value={opt}>{opt}</MenuItem>)}
               </TextField>
             );
         case 'maxPrice':
@@ -147,7 +188,7 @@ export const HomePage = () => {
   return (
     <Container maxWidth="xl" sx={{ mt: 4, mb: 8 }}>
       
-      {/* --- Hero Section: תמונה --- */}
+      {/* --- באנר ראשי (Hero Banner) --- */}
       <Box 
         sx={{ 
             display: 'flex', 
@@ -164,14 +205,14 @@ export const HomePage = () => {
             sx={{ 
                 maxWidth: '100%', 
                 height: 'auto', 
-                maxHeight: { xs: 180, md: 300 }, // גובה אופטימלי לבאנר
+                maxHeight: { xs: 180, md: 300 },
                 objectFit: 'contain',
-                filter: 'drop-shadow(0px 10px 20px rgba(0,0,0,0.1))' // צללית עדינה
+                filter: 'drop-shadow(0px 10px 20px rgba(0,0,0,0.1))'
             }}
           />
       </Box>
 
-      {/* --- סרגל כלים צף (חיפוש ופילטרים) --- */}
+      {/* --- סרגל כלים צף (חיפוש וסינון) --- */}
       <Paper 
         elevation={0} 
         sx={{ 
@@ -184,7 +225,7 @@ export const HomePage = () => {
       >
           <Grid container spacing={3} alignItems="center">
             
-            {/* חיפוש */}
+            {/* שדה חיפוש טקסטואלי */}
             <Grid size={{ xs: 12, md: 4 }}>
                 <TextField 
                     fullWidth
@@ -199,7 +240,7 @@ export const HomePage = () => {
                 />
             </Grid>
 
-            {/* מיון */}
+            {/* דרופדאון מיון */}
             <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                 <TextField
                     select
@@ -216,7 +257,7 @@ export const HomePage = () => {
                 </TextField>
             </Grid>
 
-            {/* בחירת סוג סינון */}
+            {/* דרופדאון בחירת סוג סינון */}
             <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                 <TextField
                     select
@@ -234,7 +275,7 @@ export const HomePage = () => {
                 </TextField>
             </Grid>
 
-            {/* קלט הסינון הספציפי + כפתור ניקוי */}
+            {/* הצגת הפילטר הפעיל + כפתור מחיקה */}
             {activeFilterType && (
                 <Grid size={{ xs: 12, md: 2 }}>
                     <Box sx={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -244,7 +285,7 @@ export const HomePage = () => {
                         <Chip 
                             label="X" 
                             size="small" 
-                            onClick={() => handleFilterTypeChange('')}
+                            onClick={() => handleFilterTypeChange('')} 
                             sx={{ bgcolor: '#ffebee', color: FERRARI_RED, fontWeight: 'bold', cursor: 'pointer' }}
                         />
                     </Box>
@@ -254,7 +295,7 @@ export const HomePage = () => {
           </Grid>
       </Paper>
 
-      {/* --- רשימת המוצרים --- */}
+      {/* --- גריד המוצרים --- */}
       <Grid container spacing={4}>
         {products.map((car) => (
           <Grid key={car.id} size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
@@ -265,6 +306,7 @@ export const HomePage = () => {
           </Grid>
         ))}
 
+        {/* הודעה כשאין תוצאות */}
         {products.length === 0 && (
             <Grid size={{ xs: 12 }}>
                 <Paper sx={{ p: 5, textAlign: 'center', borderRadius: 4, bgcolor: 'transparent' }} elevation={0}>

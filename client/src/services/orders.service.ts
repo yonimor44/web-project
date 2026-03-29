@@ -1,34 +1,36 @@
+// שירות לניהול הזמנות.
+// מאפשר יצירת הזמנה חדשה (Checkout) וצפייה בהיסטוריית ההזמנות.
+
 import api from './api';
 
-// מעדכנים את ה-Interface שיתאים בול למה שהשרת מצפה לקבל
+// מבנה הנתונים הנדרש ליצירת הזמנה
 export interface CreateOrderDto {
     shippingAddress: string;
     city: string;
     phone: string;
-    selectedItemIds?: number[]; // הוספנו את זה כאן
+    selectedItemIds?: number[]; // אופציונלי: להזמנת חלק מהפריטים בעגלה
 }
 
 export const ordersService = {
-    // 1. יצירת הזמנה חדשה
-    // שינינו את זה לקבל ארגומנט אחד שכולל את הכל (הכתובת + הפריטים)
+    // יצירת הזמנה חדשה
     create: async (orderData: CreateOrderDto) => {
         const response = await api.post('/orders', orderData);
         return response.data;
     },
 
-    // 2. קבלת ההזמנות שלי
+    // קבלת ההיסטוריה האישית (My Orders)
     getMyOrders: async () => {
         const response = await api.get('/orders'); 
         return response.data;
     },
 
-    // 3. קבלת כל ההזמנות (אדמין)
+    // קבלת כל ההזמנות במערכת (Admin Only)
     getAllOrders: async () => {
         const response = await api.get('/orders/all');
         return response.data;
     },
 
-    // עדכון סטטוס
+    // עדכון סטטוס הזמנה (Admin Only)
     updateStatus: async (orderId: number, status: string) => {
         const response = await api.patch(`/orders/${orderId}/status`, { status });
         return response.data;

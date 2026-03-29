@@ -1,3 +1,7 @@
+// דף פרופיל המשתמש.
+// מחולק ל-Grid: צד ימין לפרטי חשבון וסיסמה, צד שמאל לעדכון פרטים וכתובת.
+// משתמש ב-usersService לעדכון הנתונים וב-refreshUser כדי לסנכרן את האפליקציה.
+
 import { useState, useEffect } from 'react';
 import { Container, Paper, TextField, Button, Box, Avatar, Divider, Alert, CircularProgress, Grid } from '@mui/material';
 import Typography from '@mui/material/Typography';
@@ -11,9 +15,9 @@ import { usersService } from '../services/users.service';
 const FERRARI_RED = '#d32f2f';
 
 export const ProfilePage = () => {
-  const { user, refreshUser } = useAuth() as any; // הוספנו את refreshUser מהקונטקסט החדש
+  const { user, refreshUser } = useAuth() as any; 
   
-  // --- State לפרטים אישיים וכתובת ---
+  // State לטופס הפרטים האישיים
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -22,7 +26,7 @@ export const ProfilePage = () => {
     defaultPhone: ''
   });
 
-  // עדכון הסטייט כשהיוזר נטען
+  // מילוי הטופס בנתונים הקיימים (אם יש משתמש)
   useEffect(() => {
     if (user) {
         setFormData({
@@ -35,11 +39,11 @@ export const ProfilePage = () => {
     }
   }, [user]);
 
-  // --- State לסיסמה ---
+  // State נפרד לשינוי סיסמה
   const [passData, setPassData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [showPassword, setShowPassword] = useState(false);
 
-  // --- הודעות נפרדות לכל קוביה ---
+  // States להודעות הצלחה/שגיאה (נפרד לכל חלק כדי לא לבלבל)
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [profileMsg, setProfileMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
@@ -54,6 +58,7 @@ export const ProfilePage = () => {
     setPassData({ ...passData, [e.target.name]: e.target.value });
   };
 
+  // שמירת פרטים וכתובת
   const handleSaveProfile = async () => {
     setLoadingProfile(true);
     setProfileMsg(null);
@@ -61,7 +66,7 @@ export const ProfilePage = () => {
       await usersService.updateProfile(formData);
       setProfileMsg({ type: 'success', text: 'הפרטים והכתובת נשמרו בהצלחה!' });
       
-      // עדכון המידע בכל האפליקציה
+      // עדכון הקונטקסט הגלובלי כדי שהשינויים ישתקפו מיד (למשל השם בנאבבר)
       if (refreshUser) await refreshUser();
       
     } catch (error) {
@@ -71,6 +76,7 @@ export const ProfilePage = () => {
     }
   };
 
+  // שינוי סיסמה
   const handleChangePassword = async () => {
       if (passData.newPassword !== passData.confirmPassword) {
           setPassMsg({ type: 'error', text: 'הסיסמאות החדשות אינן תואמות' });
@@ -109,7 +115,7 @@ export const ProfilePage = () => {
 
       <Grid container spacing={4}>
         
-        {/* עמודה ימנית: תמונה + סיסמה */}
+        {/* --- עמודה ימנית (במסך גדול): תמונה וסיסמה --- */}
         <Grid size={{ xs: 12, md: 4 }}>
             <Paper elevation={0} sx={{ p: 4, borderRadius: 6, textAlign: 'center', border: '1px solid #e0e0e0', mb: 3 }}>
                 <Avatar 
@@ -129,7 +135,6 @@ export const ProfilePage = () => {
                     <Typography variant="h6" fontWeight="bold">שינוי סיסמה</Typography>
                 </Box>
                 
-                {/* כאן ההודעה של הסיסמה - בתוך הקוביה */}
                 {passMsg && <Alert severity={passMsg.type} sx={{ mb: 2, borderRadius: 2 }}>{passMsg.text}</Alert>}
 
                 {user.provider === 'google' ? (
@@ -148,13 +153,13 @@ export const ProfilePage = () => {
             </Paper>
         </Grid>
 
-        {/* עמודה שמאלית: פרטים + כתובת */}
+        {/* --- עמודה שמאלית: פרטים אישיים וכתובת --- */}
         <Grid size={{ xs: 12, md: 8 }}>
             <Paper elevation={0} sx={{ p: 5, borderRadius: 6, bgcolor: '#fbfbfb', border: '1px solid #e0e0e0' }}>
                 
-                {/* כאן ההודעה של הפרופיל - בתוך הקוביה */}
                 {profileMsg && <Alert severity={profileMsg.type} sx={{ mb: 3, borderRadius: 4 }}>{profileMsg.text}</Alert>}
 
+                {/* חלק 1: שדות שם */}
                 <Box sx={{ mb: 4 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 1 }}>
                         <PersonIcon sx={{ color: FERRARI_RED }} />
@@ -168,6 +173,7 @@ export const ProfilePage = () => {
 
                 <Divider sx={{ my: 3 }} />
 
+                {/* חלק 2: שדות כתובת */}
                 <Box sx={{ mb: 4 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 1 }}>
                         <HomeIcon sx={{ color: FERRARI_RED }} />

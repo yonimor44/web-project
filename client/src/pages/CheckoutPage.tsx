@@ -1,3 +1,6 @@
+// דף הקופה. כאן המשתמש מזין כתובת, רואה סיכום סופי ומבצע את ההזמנה.
+// כולל ולידציה, שמירת כתובת כברירת מחדל, וניקוי העגלה לאחר הצלחה.
+
 import { useState, useEffect } from 'react';
 import { Container, Paper, Typography, TextField, Button, Box, Divider, Alert, CircularProgress, Grid, FormControlLabel, Checkbox } from '@mui/material';
 import { useCart } from '../context/CartContext';
@@ -17,9 +20,10 @@ const FERRARI_RED = '#d32f2f';
 
 export const CheckoutPage = () => {
   const { cart, clearCart, fetchCart } = useCart() as any; 
-  const { user, refreshUser } = useAuth(); // הוספנו את refreshUser
+  const { user, refreshUser } = useAuth(); 
   const navigate = useNavigate();
   const location = useLocation();
+  // מקבלים את הפריטים שנבחרו בדף העגלה
   const { selectedItemIds } = location.state || {};
 
   const [loading, setLoading] = useState<boolean>(false);
@@ -31,7 +35,7 @@ export const CheckoutPage = () => {
       shippingAddress: '', city: '', phone: '' 
   });
 
-  // מילוי אוטומטי
+  // מילוי טופס אוטומטי אם יש למשתמש כתובת ברירת מחדל
   useEffect(() => {
     if (user) {
         setFormData({
@@ -42,6 +46,7 @@ export const CheckoutPage = () => {
     }
   }, [user]);
 
+  // סינון הפריטים לתשלום מתוך העגלה (רק אלו שנבחרו)
   const itemsToCheckout = cart?.items 
     ? (selectedItemIds && selectedItemIds.length > 0 
         ? cart.items.filter((item: any) => selectedItemIds.includes(item.id))
@@ -50,6 +55,7 @@ export const CheckoutPage = () => {
 
   const checkoutTotal = itemsToCheckout.reduce((sum: number, item: any) => sum + (Number(item.product.price) * item.quantity), 0);
 
+  // אם אין פריטים ואין הצלחה - חזרה לעגלה
   useEffect(() => {
     if ((!cart || cart.items.length === 0) && !success) { navigate('/cart'); }
   }, [cart, success, navigate]);
@@ -64,7 +70,7 @@ export const CheckoutPage = () => {
     setError('');
 
     try {
-      // 1. שמירת כתובת כברירת מחדל + רענון גלובלי
+      // 1. אם המשתמש סימן - מעדכנים את כתובת ברירת המחדל שלו
       if (saveAsDefault && user) {
           try {
               await usersService.updateProfile({
@@ -72,14 +78,12 @@ export const CheckoutPage = () => {
                   defaultCity: formData.city,
                   defaultPhone: formData.phone
               });
-              // זה התיקון הקריטי! מעדכן את ה-AuthContext במידע החדש
+              // רענון המידע בקונטקסט כדי שהשינוי ישתקף מיד
               if (refreshUser) await refreshUser(); 
-          } catch (err) {
-              console.error("Failed to update default address", err);
-          }
+          } catch (err) { console.error("Failed to update default address", err); }
       }
 
-      // 2. ביצוע ההזמנה
+      // 2. שליחת ההזמנה לשרת
       const orderPayload: CreateOrderDto = {
           ...formData,
           selectedItemIds: selectedItemIds || []
@@ -87,16 +91,11 @@ export const CheckoutPage = () => {
 
       await ordersService.create(orderPayload);
       
-      // 3. ניקוי עגלה - סדר הפעולות תוקן
-      // קודם כל מנקים את ה-UI מיד!
+      // 3. ניקוי העגלה (מקומי + שרת)
       if (clearCart && (!selectedItemIds || selectedItemIds.length === 0)) { 
           clearCart(); 
       }
-      
-      // אחר כך מסנכרנים מול השרת ליתר ביטחון
-      if (fetchCart) { 
-          await fetchCart(); 
-      }
+      if (fetchCart) await fetchCart(); 
       
       setSuccess(true);
     } catch (err: any) {
@@ -105,6 +104,7 @@ export const CheckoutPage = () => {
     } finally { setLoading(false); }
   };
 
+  // --- מסך הצלחה ---
   if (success) {
     return (
       <Container maxWidth="sm" sx={{ mt: 8, textAlign: 'center' }}>
@@ -125,7 +125,8 @@ export const CheckoutPage = () => {
       </Box>
 
       <Grid container spacing={4}>
-       <Grid size={{ xs: 12, md: 7 }}>
+        {/* טופס פרטים */}
+        <Grid size={{ xs: 12, md: 7 }}>
           <Paper elevation={0} sx={{ p: 4, borderRadius: 4, border: '1px solid #e0e0e0' }}>
             <Typography variant="h5" gutterBottom fontWeight="bold" sx={{ mb: 3 }}>פרטי משלוח</Typography>
             <Box component="form" onSubmit={handleSubmit}>
@@ -162,6 +163,7 @@ export const CheckoutPage = () => {
           </Box>
         </Grid>
 
+        {/* סיכום הזמנה צדדי */}
         <Grid size={{ xs: 12, md: 5 }}>
           <Paper elevation={4} sx={{ p: 4, borderRadius: 4, bgcolor: '#fafafa', backgroundImage: 'linear-gradient(to bottom right, #ffffff, #f8f9fa)', position: 'sticky', top: 100 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>

@@ -1,45 +1,46 @@
+// דף ביניים לטיפול בחזרה מ-Google OAuth.
+// מקבל את הטוקן מה-URL, שומר אותו ב-LocalStorage ומבצע ריענון מלא.
+
 import { useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { CircularProgress, Box, Typography } from '@mui/material';
 
 export const AuthCallback = () => {
   const location = useLocation();
-  // משתמשים ב-ref כדי למנוע מהקוד לרוץ פעמיים (קורה הרבה ב-React)
+  // Ref למניעת ריצה כפולה של ה-useEffect (קורה ב-React Strict Mode)
   const processed = useRef(false);
 
   useEffect(() => {
-    if (processed.current) return; // אם כבר רצנו, תעצור
+    if (processed.current) return; 
 
     console.log('📍 AuthCallback: מתחיל תהליך שמירת טוקן...');
     const params = new URLSearchParams(location.search);
     const token = params.get('token');
 
     if (token) {
-      processed.current = true; // מסמנים שטיפלנו
+      processed.current = true; 
 
-      console.log('✅ טוקן נמצא! שומר ל-LocalStorage בשם "token"...');
+      console.log('✅ טוקן נמצא! שומר ל-LocalStorage...');
       
-      // 1. שמירה בדפדפן
+      // 1. שמירה
       localStorage.setItem('token', token);
 
-      // 2. בדיקה שהשמירה הצליחה
+      // 2. אימות שמירה
       const savedToken = localStorage.getItem('token');
       if (savedToken === token) {
           console.log('🔒 השמירה הצליחה. מבצע ריענון מלא...');
           
-          // 3. הפתרון הגרעיני: במקום navigate, אנחנו מחליפים את הכתובת
-          // זה גורם לטעינה מחדש של כל האתר, מה שמבטיח שה-Axios יקלוט את הטוקן
+          // 3. ריענון מלא (Hard Reload) כדי לאפס את כל ה-State באפליקציה
           setTimeout(() => {
             window.location.href = '/'; 
           }, 500);
       } else {
-          console.error('❌ שגיאה: הטוקן לא נשמר בזיכרון!');
-          alert('שגיאה בשמירת פרטי ההתחברות. נסה שוב.');
+          console.error('❌ שגיאה: הטוקן לא נשמר!');
+          alert('שגיאה בשמירת פרטי ההתחברות.');
       }
 
     } else {
       console.error('❌ לא נמצא טוקן ב-URL');
-      // חזרה ללוגין אם משהו נכשל
       setTimeout(() => {
         window.location.href = '/login';
       }, 2000);

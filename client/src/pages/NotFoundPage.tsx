@@ -1,3 +1,6 @@
+// דף שגיאה 404 פשוט וברור.
+// מוצג כאשר מנסים לגשת לכתובת שאינה קיימת.
+
 import { Container, Typography, Button } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
@@ -21,8 +24,7 @@ export const NotFoundPage = () => {
       </Typography>
       
       <Button 
-        variant="contained" 
-        size="large"
+        variant="contained" size="large"
         onClick={() => navigate('/')}
         sx={{ 
             borderRadius: 50, px: 4, py: 1.5, fontWeight: 'bold', fontSize: '1.1rem',

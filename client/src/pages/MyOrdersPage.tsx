@@ -1,3 +1,6 @@
+// דף הזמנות אישי. מציג טבלה עם כל ההזמנות שביצע המשתמש.
+// שורות הטבלה נפתחות (Collapse) כדי להציג את הפירוט של הפריטים.
+
 import { useEffect, useState } from 'react';
 import { Container, Typography, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip, Box, CircularProgress, Button, Collapse, IconButton } from '@mui/material';
 import { ordersService } from '../services/orders.service';
@@ -9,6 +12,7 @@ import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 
 const FERRARI_RED = '#d32f2f';
 
+// מיפוי צבעי סטטוס
 const getStatusColor = (status: string) => {
     const s = status ? status.toLowerCase() : '';
     switch(s) {
@@ -21,12 +25,15 @@ const getStatusColor = (status: string) => {
     }
 };
 
+// --- קומפוננטת שורה מתרחבת ---
+// מופרדת כדי שלכל שורה יהיה state משלה (פתוח/סגור)
 const OrderRow = ({ order }: { order: any }) => {
   const [open, setOpen] = useState(false);
   const statusToShow = order.status || 'Pending';
 
   return (
     <>
+      {/* השורה הראשית */}
       <TableRow onClick={() => setOpen(!open)} sx={{ '& > *': { borderBottom: 'unset' }, cursor: 'pointer', transition: 'all 0.2s', '&:hover': { bgcolor: '#fff5f5' } }}>
         <TableCell>
             <IconButton size="small" onClick={() => setOpen(!open)} sx={{ bgcolor: open ? FERRARI_RED : '#f5f5f5', color: open ? 'white' : 'inherit', '&:hover': { bgcolor: open ? '#b71c1c' : '#e0e0e0' } }}>
@@ -39,6 +46,7 @@ const OrderRow = ({ order }: { order: any }) => {
         <TableCell sx={{ fontWeight: '900', color: FERRARI_RED, fontSize: '1.1rem' }}>₪{Number(order.totalAmount).toLocaleString()}</TableCell>
       </TableRow>
       
+      {/* שורת הפירוט (Collapse) */}
       <TableRow>
         <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={6}>
           <Collapse in={open} timeout="auto" unmountOnExit>

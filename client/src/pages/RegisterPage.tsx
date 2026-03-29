@@ -1,3 +1,6 @@
+// דף הרשמה למשתמשים חדשים.
+// כולל ולידציה בצד הלקוח (התאמת סיסמאות, אורך סיסמה) וטיפול בשגיאות מהשרת (למשל אימייל תפוס).
+
 import { useState } from 'react';
 import { Container, Paper, Typography, TextField, Button, Box, Alert, InputAdornment, IconButton, Avatar } from '@mui/material';
 import Visibility from '@mui/icons-material/Visibility';
@@ -12,6 +15,7 @@ export const RegisterPage = () => {
   const { register } = useAuth();
   const navigate = useNavigate();
   
+  // ניהול כל שדות הטופס באובייקט אחד
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -24,6 +28,7 @@ export const RegisterPage = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // עדכון גנרי של שדות הטופס
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
       ...formData,
@@ -37,6 +42,8 @@ export const RegisterPage = () => {
     e.preventDefault();
     setError('');
 
+    // --- ולידציות בצד הלקוח (Client-Side Validation) ---
+    // חוסך קריאה לשרת אם הנתונים בבירור לא תקינים
     if (formData.password !== formData.confirmPassword) {
         setError('הסיסמאות אינן תואמות! אנא נסה שוב.');
         return;
@@ -50,13 +57,18 @@ export const RegisterPage = () => {
     setLoading(true);
 
     try {
+      // שליחת הבקשה לשרת דרך הקונטקסט
       await register(formData.firstName, formData.lastName, formData.email, formData.password);
+      
+      // אם הפעולה הצליחה (לא נזרקה שגיאה), המשתמש כבר מחובר אוטומטית.
+      // נעביר אותו לדף הבית.
       navigate('/'); 
     } catch (err: any) {
         console.error(err);
+        // חילוץ הודעת השגיאה מהשרת (תומך גם במערך שגיאות מ-class-validator)
         const serverMsg = err.response?.data?.message;
         if (Array.isArray(serverMsg)) {
-            setError(serverMsg[0]);
+            setError(serverMsg[0]); // הצגת השגיאה הראשונה ברשימה
         } else {
             setError(serverMsg || 'שגיאה בהרשמה. נסה שוב מאוחר יותר.');
         }
@@ -68,23 +80,15 @@ export const RegisterPage = () => {
   return (
     <Box sx={{ 
         minHeight: '90vh', 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center',
-        background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)' // רקע יוקרתי לכל המסך
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)' 
     }}>
       <Container maxWidth="xs">
         <Paper elevation={10} sx={{ 
-            p: 4, 
-            display: 'flex', 
-            flexDirection: 'column', 
-            alignItems: 'center', 
-            borderRadius: 6, // פינות מעוגלות לכרטיס
-            bgcolor: 'rgba(255, 255, 255, 0.95)',
-            backdropFilter: 'blur(10px)'
+            p: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', 
+            borderRadius: 6, bgcolor: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(10px)'
         }}>
           
-          {/* אייקון עגול בראש הטופס */}
           <Avatar sx={{ m: 1, bgcolor: FERRARI_RED, width: 56, height: 56, boxShadow: '0 4px 10px rgba(211, 47, 47, 0.4)' }}>
             <PersonAddOutlinedIcon fontSize="large" />
           </Avatar>
@@ -100,17 +104,17 @@ export const RegisterPage = () => {
 
           <Box component="form" onSubmit={handleSubmit} sx={{ width: '100%' }}>
             
-            {/* --- שימוש במבנה הגריד שביקשת (Box עם gap) --- */}
+            {/* שדות שם פרטי ומשפחה בשורה אחת לחיסכון במקום */}
             <Box sx={{ display: 'flex', gap: 2 }}>
               <TextField
                 margin="normal" required fullWidth label="שם פרטי" name="firstName"
                 value={formData.firstName} onChange={handleChange} autoFocus
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 50 } }} // שדה עגול
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 50 } }}
               />
               <TextField
                 margin="normal" required fullWidth label="שם משפחה" name="lastName"
                 value={formData.lastName} onChange={handleChange}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 50 } }} // שדה עגול
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 50 } }}
               />
             </Box>
 
@@ -140,21 +144,16 @@ export const RegisterPage = () => {
             <TextField
               margin="normal" required fullWidth label="אימות סיסמה" name="confirmPassword" type="password"
               value={formData.confirmPassword} onChange={handleChange}
+              // סימון שגיאה ויזואלי אם הסיסמאות לא תואמות תוך כדי הקלדה
               error={formData.confirmPassword !== '' && formData.password !== formData.confirmPassword}
               sx={{ '& .MuiOutlinedInput-root': { borderRadius: 50 } }}
             />
             
             <Button 
-              type="submit" 
-              fullWidth 
-              variant="contained" 
-              size="large" 
-              disabled={loading}
+              type="submit" fullWidth variant="contained" size="large" disabled={loading}
               sx={{ 
-                  mt: 3, mb: 2, py: 1.5, fontSize: '1.1rem',
-                  borderRadius: 50, // כפתור עגול
-                  bgcolor: FERRARI_RED, // אדום פרארי
-                  fontWeight: 'bold',
+                  mt: 3, mb: 2, py: 1.5, fontSize: '1.1rem', borderRadius: 50, 
+                  bgcolor: FERRARI_RED, fontWeight: 'bold',
                   boxShadow: '0 8px 20px rgba(211, 47, 47, 0.3)',
                   '&:hover': { bgcolor: '#b71c1c', boxShadow: '0 12px 25px rgba(211, 47, 47, 0.4)' }
               }}

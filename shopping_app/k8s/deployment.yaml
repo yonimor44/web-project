@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shopping-backend-deployment
+spec:
+  replicas: 3 # נרים 3 עותקים לפי הדרישות
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: shopping-backend
+  template:
+    metadata:
+      labels:
+        app: shopping-backend
+    spec:
+      containers:
+      - name: shopping-backend
+        image: localhost:5000/shopping-backend:latest # משם הוא ייקח את תמונת הדוקר
+        ports:
+        - containerPort: 3000
+        resources:
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health # פה קוברנטיס משתמש בנתיב שיצרנו בשלב 1!
+            port: 3000
+          initialDelaySeconds: 15
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 5

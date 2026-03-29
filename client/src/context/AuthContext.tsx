@@ -1,3 +1,6 @@
+// ניהול המשתמש הגלובלי. מטפל בכל מחזור החיים של האימות:
+// בדיקת טוקן בעלייה, התחברות, הרשמה, יציאה ורענון נתונים.
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { User } from '../types/auth.types';
 import { jwtDecode } from 'jwt-decode';
@@ -12,7 +15,7 @@ interface AuthContextType {
   loginWithToken: (token: string) => Promise<User | null>; 
   register: (first: string, last: string, email: string, pass: string) => Promise<void>;
   logout: () => void;
-  refreshUser: () => Promise<void>; // --- הוספנו את זה ---
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -21,10 +24,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // --- פונקציה חדשה: מביאה את המידע הכי טרי מהדאטה-בייס ---
+  // משיכת הפרופיל המלא מהשרת.
+  // הטוקן מכיל מידע בסיסי בלבד (שם, אימייל, תפקיד).
+  // הכתובות והטלפון נמצאים רק בדאטה-בייס, לכן צריך את הקריאה הזו.
   const fetchUserProfile = async () => {
     try {
-      // מוסיפים headers כדי למנוע cache
       const response = await api.get<User>('/users/profile', {
           headers: { 'Cache-Control': 'no-cache' }
       });
@@ -34,20 +38,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // פונקציית הליבה של הקונטקסט: עיבוד טוקן JWT
   const handleTokenProcessing = async (token: string): Promise<User | null> => {
+    // 1. שמירה בדפדפן והגדרת Header לבקשות הבאות
     localStorage.setItem('token', token);
     api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     
     try {
         const decoded: any = jwtDecode(token);
-        const currentTime = Date.now() / 1000;
-        if (decoded.exp < currentTime) {
+        
+        // 2. בדיקת תוקף (Expiration)
+        if (decoded.exp < (Date.now() / 1000)) {
             console.log('Token expired');
             logout();
             return null;
         }
 
-        // שלב 1: מציגים מיד את המידע מהטוקן (כדי שהממשק יעלה מהר)
+        // 3. עדכון מהיר (Optimistic UI) - מציגים מידע מהטוקן מיד
         const userFromToken: User = {
             id: decoded.sub,
             email: decoded.email,
@@ -59,25 +66,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
         setUser(userFromToken);
 
-        // שלב 2: מושכים ברקע את המידע המלא (כולל כתובות) מהשרת
-        // זה מה שמתקן את הבאג שהכתובת נעלמת!
+        // 4. עדכון מלא ברקע - משלים פרטים חסרים (כמו כתובת)
         await fetchUserProfile();
 
         return userFromToken;
 
     } catch (e) {
-        console.error('Failed to decode token', e);
+        console.error('Token decode failed', e);
         logout();
         return null;
     }
   };
 
+  // בדיקת טוקן בעת טעינת האתר (כדי שהמשתמש יישאר מחובר בריענון)
   useEffect(() => {
     const initAuth = async () => {
         const token = localStorage.getItem('token');
-        if (token) {
-            await handleTokenProcessing(token);
-        }
+        if (token) await handleTokenProcessing(token);
         setLoading(false);
     };
     initAuth();
@@ -103,14 +108,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     window.location.href = '/login';
   };
-
-  // פונקציה חשופה לרענון יזום (למשל אחרי שמירת פרופיל)
-  const refreshUser = async () => {
-      await fetchUserProfile();
-  };
-
+  
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, loading, login, loginWithToken, register, logout, refreshUser }}>
+    <AuthContext.Provider value={{ 
+        user, 
+        isAuthenticated: !!user, 
+        loading, 
+        login, 
+        loginWithToken, 
+        register, 
+        logout, 
+        refreshUser: fetchUserProfile 
+    }}>
       {!loading && children}
     </AuthContext.Provider>
   );

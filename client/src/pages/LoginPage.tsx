@@ -1,3 +1,7 @@
+// דף התחברות למערכת.
+// תומך בהתחברות רגילה (אימייל/סיסמה) והתחברות דרך Google OAuth.
+// מזהה אם המשתמש הגיע מקישור עם טוקן ומבצע התחברות אוטומטית.
+
 import { useState, useEffect } from 'react';
 import { Container, Paper, Typography, TextField, Button, Box, Divider, Alert, InputAdornment, IconButton, Avatar } from '@mui/material';
 import GoogleIcon from '@mui/icons-material/Google';
@@ -19,6 +23,8 @@ export const LoginPage = () => {
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
+  // --- טיפול בחזרה מגוגל ---
+  // אם הגענו לדף הזה עם פרמטר 'token' ב-URL, סימן שהשרת הפנה אותנו לכאן אחרי לוגין מוצלח בגוגל.
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const token = params.get('token');
@@ -26,7 +32,9 @@ export const LoginPage = () => {
     const handleGoogleRedirect = async () => {
         if (token) {
             try {
+                // שימוש בטוקן כדי להיכנס למערכת
                 const user = await loginWithToken(token) as any; 
+                // ניתוב לפי הרשאות
                 if (user?.role === 'admin') {
                     navigate('/admin');
                 } else {
@@ -42,15 +50,18 @@ export const LoginPage = () => {
   }, [location, loginWithToken, navigate]);
 
   const handleGoogleLogin = () => {
+    // הפניה ל-Endpoint בשרת שמתחיל את תהליך ה-OAuth
     window.location.href = 'http://localhost:3000/auth/google';
   };
-
+  
+  // --- טיפול בטופס התחברות רגיל ---
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
     try {
       const user = await login(email, password) as any;
+      // ניתוב חכם לפי תפקיד
       if (user?.role === 'admin') {
           navigate('/admin');
       } else {
@@ -70,20 +81,17 @@ export const LoginPage = () => {
         display: 'flex', 
         alignItems: 'center', 
         justifyContent: 'center',
-        background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)' // רקע עדין לכל המסך
+        background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)' // רקע יוקרתי
     }}>
       <Container maxWidth="xs">
         <Paper elevation={10} sx={{ 
             p: 5, 
-            display: 'flex', 
-            flexDirection: 'column', 
-            alignItems: 'center', 
-            borderRadius: 6, // כרטיס מעוגל מאוד
+            display: 'flex', flexDirection: 'column', alignItems: 'center', 
+            borderRadius: 6, 
             bgcolor: 'rgba(255, 255, 255, 0.95)',
             backdropFilter: 'blur(10px)'
         }}>
           
-          {/* אייקון מנעול אדום */}
           <Avatar sx={{ m: 1, bgcolor: FERRARI_RED, width: 56, height: 56, boxShadow: '0 4px 10px rgba(211, 47, 47, 0.4)' }}>
             <LockOutlinedIcon fontSize="large" />
           </Avatar>
@@ -92,43 +100,29 @@ export const LoginPage = () => {
             התחברות
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
-             ברוך הבא! התחבר כדי להמשיך
+              ברוך הבא! התחבר כדי להמשיך
           </Typography>
 
           {error && <Alert severity="error" sx={{ width: '100%', mb: 2, borderRadius: 2 }}>{error}</Alert>}
 
           <Box component="form" onSubmit={handleSubmit} sx={{ width: '100%' }}>
             <TextField
-              margin="normal"
-              required
-              fullWidth
-              label="כתובת אימייל"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoFocus
-              // עיצוב שדה עגול
+              margin="normal" required fullWidth autoFocus
+              label="כתובת אימייל" type="email"
+              value={email} onChange={(e) => setEmail(e.target.value)}
               sx={{ '& .MuiOutlinedInput-root': { borderRadius: 50 } }}
             />
             
             <TextField
-              margin="normal"
-              required
-              fullWidth
+              margin="normal" required fullWidth
               label="סיסמה"
               type={showPassword ? 'text' : 'password'} 
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              // עיצוב שדה עגול
+              value={password} onChange={(e) => setPassword(e.target.value)}
               sx={{ '& .MuiOutlinedInput-root': { borderRadius: 50 } }}
               InputProps={{
                 endAdornment: (
                   <InputAdornment position="end">
-                    <IconButton
-                      onClick={handleClickShowPassword}
-                      edge="end"
-                      sx={{ mr: 1 }}
-                    >
+                    <IconButton onClick={handleClickShowPassword} edge="end" sx={{ mr: 1 }}>
                       {showPassword ? <VisibilityOff /> : <Visibility />}
                     </IconButton>
                   </InputAdornment>
@@ -143,15 +137,10 @@ export const LoginPage = () => {
             </Box>
 
             <Button 
-              type="submit" 
-              fullWidth 
-              variant="contained" 
-              size="large" 
+              type="submit" fullWidth variant="contained" size="large" 
               sx={{ 
                   mt: 3, mb: 2, py: 1.5, fontSize: '1.1rem', 
-                  borderRadius: 50, // כפתור עגול
-                  bgcolor: FERRARI_RED, 
-                  fontWeight: 'bold',
+                  borderRadius: 50, bgcolor: FERRARI_RED, fontWeight: 'bold',
                   boxShadow: '0 8px 20px rgba(211, 47, 47, 0.3)',
                   '&:hover': { bgcolor: '#b71c1c', boxShadow: '0 12px 25px rgba(211, 47, 47, 0.4)' }
               }}
@@ -163,13 +152,10 @@ export const LoginPage = () => {
           <Divider sx={{ width: '100%', my: 2, fontSize: '0.8rem', color: 'text.secondary' }}>או</Divider>
 
           <Button
-            variant="outlined"
-            fullWidth
-            startIcon={<GoogleIcon />}
+            variant="outlined" fullWidth startIcon={<GoogleIcon />}
             onClick={handleGoogleLogin}
             sx={{ 
-                mb: 3, py: 1.5, 
-                borderRadius: 50, 
+                mb: 3, py: 1.5, borderRadius: 50, 
                 borderColor: '#e0e0e0', color: '#555', fontWeight: 'bold',
                 '&:hover': { borderColor: '#bdbdbd', bgcolor: 'transparent' }
             }}
