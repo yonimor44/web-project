@@ -20,6 +20,7 @@ spec:
       containers:
       - name: shopping-backend
         image: localhost:5000/shopping-backend:latest
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 3000
         env:
