@@ -9,9 +9,9 @@ export class AppController {
   getHello(): string {
     return this.appService.getHello();
   }
- @Get('health')
-getHealth() {
-  // שבירה מכוונת לצורך בדיקת Rollback
-  throw new HttpException('Internal Server Error', HttpStatus.INTERNAL_SERVER_ERROR);
-}
+  @Get('health')
+  checkHealth() {
+    return 'OK'; 
+    // ב-NestJS, ברגע שאתה מחזיר תשובה רגילה מ-Get, הוא אוטומטית שולח סטטוס 200 שזה בדיוק מה שקוברנטיס מחפש.
+  }
 }
