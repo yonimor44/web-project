@@ -46,6 +46,8 @@ spec:
             value: "dummy-google-client-secret"
           - name: GOOGLE_CALLBACK_URL
             value: "http://localhost:3000/auth/google/callback"
+          - name: FRONTEND_URL
+            value: "http://localhost:30080"
         resources:
           limits:
             memory: "512Mi"
