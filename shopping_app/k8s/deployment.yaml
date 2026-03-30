@@ -36,8 +36,6 @@ spec:
             value: "postgres"
           - name: DB_NAME
             value: "shopping_db"
-          - name: FRONTEND_URL
-            value: "http://localhost:5173"
           - name: SESSION_SECRET
             value: "super-secret-session-key"
           - name: GOOGLE_CLIENT_ID
