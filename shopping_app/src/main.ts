@@ -19,7 +19,7 @@ async function bootstrap() {
   const frontendUrl = configService.get<string>('FRONTEND_URL') || 'http://localhost:5173';
 
   app.enableCors({
-    origin: frontendUrl, // מאפשר גישה רק מהדומיין של הפרונט
+    origin: true, // מאפשר גישה רק מהדומיין של הפרונט
     credentials: true,   // מאפשר העברת עוגיות (Cookies) והדרים מאובטחים
     methods: [
       'GET', 
